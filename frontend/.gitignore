@@ -39,3 +39,8 @@ Thumbs.db
 # Testing
 coverage/
 .nyc_output/
+
+# Playwright
+playwright-report/
+test-results/
+e2e/*.txt
