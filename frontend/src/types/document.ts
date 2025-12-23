@@ -1,3 +1,16 @@
+export interface Document {
+  id: string;
+  title: string;
+  file_name: string;
+  file_type: string;
+  file_size?: number;
+  page_count?: number;
+  headers?: string[];
+  chunk_count?: number;
+  upload_date?: string;
+  status?: string;
+}
+
 export interface DocumentMetadata {
   title: string;
   filename: string;
@@ -6,9 +19,4 @@ export interface DocumentMetadata {
   page_count?: number;
   headers?: string[];
   chunk_count?: number;
-}
-
-export interface Document {
-  id: string;
-  metadata: DocumentMetadata;
 }
