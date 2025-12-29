@@ -13,8 +13,8 @@ def test_create_session(client):
     assert response.status_code == 200
 
     data = response.json()
-    assert "session_id" in data
-    assert data["session_id"]
+    assert "id" in data
+    assert data["id"]
 
 
 def test_get_sessions(client):
@@ -40,7 +40,7 @@ def test_get_session_by_id(client):
         "/api/sessions",
         json={"model_id": "mistralai/Mixtral-8x7B-Instruct-v0.1"}
     )
-    session_id = create_response.json()["session_id"]
+    session_id = create_response.json()["id"]
 
     # Get the session
     response = client.get(f"/api/sessions/{session_id}")
@@ -65,7 +65,7 @@ def test_delete_session(client):
         "/api/sessions",
         json={"model_id": "mistralai/Mixtral-8x7B-Instruct-v0.1"}
     )
-    session_id = create_response.json()["session_id"]
+    session_id = create_response.json()["id"]
 
     # Delete it
     response = client.delete(f"/api/sessions/{session_id}")

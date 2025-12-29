@@ -4,6 +4,9 @@ import { apiClient } from './api';
 // Mock fetch globally
 global.fetch = vi.fn();
 
+// Base URL from environment (set in setup.ts) or fallback
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 describe('ApiClient', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -24,7 +27,7 @@ describe('ApiClient', () => {
       const result = await apiClient.getDocuments();
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/documents',
+        `${API_BASE_URL}/api/documents`,
         expect.objectContaining({
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
@@ -62,7 +65,7 @@ describe('ApiClient', () => {
       const result = await apiClient.uploadDocument(mockFile);
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/documents/upload',
+        `${API_BASE_URL}/api/documents/upload`,
         expect.objectContaining({
           method: 'POST',
           body: expect.any(FormData),
@@ -94,7 +97,7 @@ describe('ApiClient', () => {
       await apiClient.deleteDocument('doc-123');
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/documents/doc-123',
+        `${API_BASE_URL}/api/documents/doc-123`,
         expect.objectContaining({
           method: 'DELETE',
         })
@@ -132,7 +135,7 @@ describe('ApiClient', () => {
       const result = await apiClient.createSession('model-1');
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/sessions',
+        `${API_BASE_URL}/api/sessions`,
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ model_id: 'model-1' }),
@@ -182,7 +185,7 @@ describe('ApiClient', () => {
       await apiClient.deleteSession('session-123');
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/sessions/session-123',
+        `${API_BASE_URL}/api/sessions/session-123`,
         expect.objectContaining({
           method: 'DELETE',
         })
@@ -221,7 +224,7 @@ describe('ApiClient', () => {
   describe('API URL configuration', () => {
     it('should use environment variable for base URL', () => {
       // The API URL is set in setup.ts via vi.stubEnv
-      expect(process.env.NEXT_PUBLIC_API_URL).toBe('http://localhost:8000');
+      expect(API_BASE_URL).toBe('http://localhost:8000');
     });
   });
 });

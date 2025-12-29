@@ -61,10 +61,11 @@ Context:
         context_parts = []
         for i, doc in enumerate(docs, 1):
             source = doc.metadata.get("filename", "Unknown")
-            page = doc.metadata.get("page_count", "")
+            chunk_index = doc.metadata.get("chunk_index")
+            chunk_total = doc.metadata.get("chunk_total")
             source_info = f"[Source {i}: {source}"
-            if page:
-                source_info += f", Page {page}"
+            if chunk_index is not None and chunk_total is not None:
+                source_info += f", Chunk {chunk_index + 1}/{chunk_total}"
             source_info += "]"
             context_parts.append(f"{source_info}\n{doc.page_content}")
 

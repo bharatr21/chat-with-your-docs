@@ -5,7 +5,7 @@ from typing import AsyncIterator
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_huggingface import HuggingFaceEndpoint
+from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
@@ -58,14 +58,15 @@ class LLMProvider:
             )
 
         elif provider == "HuggingFace":
-            # HuggingFace uses endpoint for inference
+            # HuggingFace uses endpoint wrapped in ChatHuggingFace for chat support
             llm = HuggingFaceEndpoint(
                 repo_id=model_id,
                 temperature=temperature,
                 max_new_tokens=max_tokens,
                 huggingfacehub_api_token=settings.get_hf_api_key(),
             )
-            return llm
+            # Wrap in ChatHuggingFace to properly handle chat messages
+            return ChatHuggingFace(llm=llm)
 
         else:
             raise ValueError(f"Unknown provider: {provider}")

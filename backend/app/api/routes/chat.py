@@ -54,23 +54,36 @@ async def chat(request: ChatRequest):
             max_tokens=request.max_tokens
         )
 
-        # Get conversation history (excluding last message)
-        history = request.messages[:-1] if len(request.messages) > 1 else None
+        # Get conversation history: combine session history with request messages
+        # Session messages provide full history, request messages may have recent context
+        history = None
+        if session and session.messages:
+            # Use session's stored messages as history
+            history = session.messages
+        elif len(request.messages) > 1:
+            # Fall back to request messages (excluding last) if no session
+            history = request.messages[:-1]
 
         if request.stream:
             # Streaming response
             async def generate():
                 full_response = []
-                async for chunk in pipeline.run(
-                    query=user_message.content,
-                    conversation_history=history,
-                    stream=True
-                ):
-                    full_response.append(chunk)
-                    async for formatted in VercelStreamFormatter.format_stream(
-                        aiter([chunk])
+
+                # Buffer chunks while streaming
+                async def buffered_stream():
+                    async for chunk in pipeline.run(
+                        query=user_message.content,
+                        conversation_history=history,
+                        stream=True
                     ):
-                        yield formatted
+                        full_response.append(chunk)
+                        yield chunk
+
+                # Format entire stream (sends [DONE] only at the end)
+                async for formatted in VercelStreamFormatter.format_stream(
+                    buffered_stream()
+                ):
+                    yield formatted
 
                 # Save messages to session if session exists
                 if request.session_id:
@@ -117,10 +130,4 @@ async def chat(request: ChatRequest):
             }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-async def aiter(items):
-    """Helper to create async iterator from list"""
-    for item in items:
-        yield item
+        raise HTTPException(status_code=500, detail=str(e)) from e

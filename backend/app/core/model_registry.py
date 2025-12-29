@@ -24,8 +24,8 @@ class ModelRegistry:
             "env_key": "OPENAI_API_KEY",
             "description": "OpenAI's latest compact model with strong reasoning"
         },
-        "claude-4-5-haiku": {
-            "name": "Claude 4.5 Haiku",
+        "claude-haiku-4-5": {
+            "name": "Claude Haiku 4.5",
             "provider": "Anthropic",
             "env_key": "ANTHROPIC_API_KEY",
             "description": "Anthropic's fast and efficient Claude model"
@@ -88,7 +88,7 @@ class ModelRegistry:
         for model_id in [
             "mistralai/Mixtral-8x7B-Instruct-v0.1",
             "gpt-5-mini",
-            "claude-4-5-haiku",
+            "claude-haiku-4-5",
             "gemini-3-flash-preview"
         ]:
             if cls.is_model_available(model_id):

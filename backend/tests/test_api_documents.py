@@ -25,10 +25,10 @@ def test_upload_document(client, sample_text_file):
     assert response.status_code == 200
 
     data = response.json()
-    assert "document_id" in data
-    assert "title" in data
-    assert "chunk_count" in data
-    assert data["chunk_count"] > 0
+    assert "id" in data
+    assert "metadata" in data
+    assert "chunk_count" in data["metadata"]
+    assert data["metadata"]["chunk_count"] > 0
 
 
 def test_upload_unsupported_file(client, tmp_path):
@@ -54,7 +54,7 @@ def test_get_document_by_id(client, sample_text_file):
             "/api/documents/upload",
             files={"file": ("test.txt", f, "text/plain")}
         )
-    doc_id = upload_response.json()["document_id"]
+    doc_id = upload_response.json()["id"]
 
     # Get the document
     response = client.get(f"/api/documents/{doc_id}")
@@ -62,8 +62,9 @@ def test_get_document_by_id(client, sample_text_file):
 
     data = response.json()
     assert data["id"] == doc_id
-    assert "title" in data
-    assert "file_type" in data
+    assert "metadata" in data
+    assert "title" in data["metadata"]
+    assert "file_type" in data["metadata"]
 
 
 def test_delete_document(client, sample_text_file):
@@ -74,7 +75,7 @@ def test_delete_document(client, sample_text_file):
             "/api/documents/upload",
             files={"file": ("test.txt", f, "text/plain")}
         )
-    doc_id = upload_response.json()["document_id"]
+    doc_id = upload_response.json()["id"]
 
     # Delete it
     response = client.delete(f"/api/documents/{doc_id}")

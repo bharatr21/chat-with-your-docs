@@ -272,8 +272,15 @@ def test_save_metadata_overwrites_existing(metadata_manager):
     assert loaded["updated"] is True
 
 
-def test_list_all_metadata_nonexistent_directory():
-    """Test listing metadata when directory doesn't exist"""
-    manager = MetadataManager(metadata_dir="/nonexistent/path")
+def test_list_all_metadata_nonexistent_directory(tmp_path):
+    """Test listing metadata when directory doesn't exist initially"""
+    # Use a non-existent subpath inside tmp_path (os.makedirs will create it)
+    nonexistent_subdir = tmp_path / "nonexistent" / "nested" / "path"
+    manager = MetadataManager(metadata_dir=str(nonexistent_subdir))
+
+    # Directory should now exist (created by __init__)
+    assert nonexistent_subdir.exists()
+
+    # But should have no metadata files
     result = manager.list_all_metadata()
     assert result == []

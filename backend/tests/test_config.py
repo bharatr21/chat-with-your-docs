@@ -1,6 +1,7 @@
 """
 Tests for application configuration
 """
+import importlib
 import os
 import pytest
 from app.config import Settings
@@ -9,7 +10,7 @@ from app.config import Settings
 def test_settings_defaults():
     """Test default settings values"""
     settings = Settings()
-    
+
     assert settings.APP_NAME == "RAG Chat API"
     assert settings.APP_VERSION == "0.1.0"
     assert settings.DEBUG is False
@@ -28,21 +29,44 @@ def test_settings_defaults():
     assert settings.PORT == 8000
 
 
-def test_settings_with_env_vars(monkeypatch):
-    """Test settings loaded from environment variables"""
+def test_settings_class_with_env_vars(monkeypatch):
+    """Test Settings class instantiation with environment variables"""
     monkeypatch.setenv("APP_NAME", "Test App")
     monkeypatch.setenv("DEBUG", "true")
     monkeypatch.setenv("PORT", "9000")
     monkeypatch.setenv("HF_API_KEY", "test_hf_key")
     monkeypatch.setenv("OPENAI_API_KEY", "test_openai_key")
-    
+
+    # Create new instance to pick up env vars
     settings = Settings()
-    
+
     assert settings.APP_NAME == "Test App"
     assert settings.DEBUG is True
     assert settings.PORT == 9000
     assert settings.HF_API_KEY == "test_hf_key"
     assert settings.OPENAI_API_KEY == "test_openai_key"
+
+
+def test_module_level_settings_with_reload(monkeypatch):
+    """Test that module-level settings instance picks up env vars after reload"""
+    monkeypatch.setenv("APP_NAME", "Reloaded App")
+    monkeypatch.setenv("DEBUG", "true")
+    monkeypatch.setenv("PORT", "8888")
+
+    # Reload the config module to recreate the global settings instance
+    import app.config
+    importlib.reload(app.config)
+
+    # Now the module-level settings should have the new values
+    assert app.config.settings.APP_NAME == "Reloaded App"
+    assert app.config.settings.DEBUG is True
+    assert app.config.settings.PORT == 8888
+
+    # Reload again to restore defaults for other tests
+    monkeypatch.delenv("APP_NAME", raising=False)
+    monkeypatch.delenv("DEBUG", raising=False)
+    monkeypatch.delenv("PORT", raising=False)
+    importlib.reload(app.config)
 
 
 def test_cors_origins_list_single():

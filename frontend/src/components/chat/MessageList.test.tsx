@@ -60,9 +60,22 @@ describe('MessageList', () => {
     const messages = [
       { id: '1', role: 'user' as const, content: 'Test' },
     ];
-    
+
     render(<MessageList messages={messages} isLoading={false} />);
-    
+
+    const dots = document.querySelectorAll('.animate-bounce');
+    expect(dots.length).toBe(0);
+  });
+
+  it('should not show loading indicator when isLoading but last message is assistant', () => {
+    const messages = [
+      { id: '1', role: 'user' as const, content: 'Test question' },
+      { id: '2', role: 'assistant' as const, content: 'Here is my response' },
+    ];
+
+    render(<MessageList messages={messages} isLoading={true} />);
+
+    // Loading indicator should not show when assistant already responded
     const dots = document.querySelectorAll('.animate-bounce');
     expect(dots.length).toBe(0);
   });
