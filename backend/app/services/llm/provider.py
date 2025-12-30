@@ -1,7 +1,7 @@
 """
 LLM provider factory for different model providers
 """
-from typing import AsyncIterator
+from typing import AsyncIterator, Optional
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -11,6 +11,7 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from app.config import settings
 from app.core.model_registry import ModelRegistry
+from app.models.user_keys import UserAPIKeys
 
 
 class LLMProvider:
@@ -21,14 +22,31 @@ class LLMProvider:
         model_id: str,
         temperature: float = 0.7,
         max_tokens: int = 1024,
-        streaming: bool = True
+        streaming: bool = True,
+        user_keys: Optional[UserAPIKeys] = None
     ) -> BaseChatModel:
-        """Create LLM instance based on model ID"""
+        """
+        Create LLM instance based on model ID
 
-        if not ModelRegistry.is_model_available(model_id):
+        Args:
+            model_id: Model identifier
+            temperature: Sampling temperature
+            max_tokens: Maximum tokens to generate
+            streaming: Enable streaming
+            user_keys: Optional user-provided API keys (priority over server keys)
+
+        Returns:
+            Configured LLM instance
+        """
+
+        if not ModelRegistry.is_model_available(model_id, user_keys):
             raise ValueError(f"Model {model_id} is not available. Check API key.")
 
         provider = ModelRegistry.get_provider(model_id)
+        env_key = ModelRegistry.get_env_key(model_id)
+
+        # Get API key with user keys taking priority
+        api_key = ModelRegistry._get_api_key(env_key, user_keys)
 
         if provider == "OpenAI":
             return ChatOpenAI(
@@ -36,7 +54,7 @@ class LLMProvider:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 streaming=streaming,
-                api_key=settings.OPENAI_API_KEY
+                api_key=api_key
             )
 
         elif provider == "Anthropic":
@@ -45,7 +63,7 @@ class LLMProvider:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 streaming=streaming,
-                api_key=settings.ANTHROPIC_API_KEY
+                api_key=api_key
             )
 
         elif provider == "Google":
@@ -54,7 +72,7 @@ class LLMProvider:
                 temperature=temperature,
                 max_output_tokens=max_tokens,
                 streaming=streaming,
-                google_api_key=settings.GEMINI_API_KEY
+                google_api_key=api_key
             )
 
         elif provider == "HuggingFace":
@@ -63,7 +81,7 @@ class LLMProvider:
                 repo_id=model_id,
                 temperature=temperature,
                 max_new_tokens=max_tokens,
-                huggingfacehub_api_token=settings.get_hf_api_key(),
+                huggingfacehub_api_token=api_key,
             )
             # Wrap in ChatHuggingFace to properly handle chat messages
             return ChatHuggingFace(llm=llm)

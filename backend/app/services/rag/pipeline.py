@@ -8,6 +8,7 @@ from langchain_core.documents import Document
 from app.services.llm.provider import LLMProvider
 from app.services.rag.retriever import HybridRetriever
 from app.models.schemas import Message, RetrievedChunk
+from app.models.user_keys import UserAPIKeys
 
 
 class RAGPipeline:
@@ -27,19 +28,22 @@ Context:
         model_id: str,
         document_ids: List[str] = None,
         temperature: float = 0.7,
-        max_tokens: int = 1024
+        max_tokens: int = 1024,
+        user_keys: Optional[UserAPIKeys] = None
     ):
         self.model_id = model_id
         self.document_ids = document_ids or []
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.user_keys = user_keys
 
         # Initialize components
         self.llm = LLMProvider.create_llm(
             model_id=model_id,
             temperature=temperature,
             max_tokens=max_tokens,
-            streaming=True
+            streaming=True,
+            user_keys=user_keys
         )
 
         self.retriever = HybridRetriever(document_ids=document_ids)

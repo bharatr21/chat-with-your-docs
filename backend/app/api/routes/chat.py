@@ -1,28 +1,30 @@
 """
 Chat API endpoints with streaming support
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 
 from app.models.schemas import ChatRequest, Message
+from app.models.user_keys import UserAPIKeys
 from app.services.rag import RAGPipeline
 from app.services.session import session_store
 from app.core.streaming import VercelStreamFormatter
 from app.core.model_registry import ModelRegistry
+from app.core.dependencies import get_user_api_keys
 
 router = APIRouter()
 
 
 @router.post("")
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_api_keys)):
     """
     Chat endpoint with RAG and streaming support.
     Compatible with Vercel AI SDK useChat hook.
     """
-    # Validate model
-    if not ModelRegistry.is_model_available(request.model_id):
+    # Validate model (check with user keys)
+    if not ModelRegistry.is_model_available(request.model_id, user_keys):
         # Try to use default model
-        default_model = ModelRegistry.get_default_model()
+        default_model = ModelRegistry.get_default_model(user_keys)
         if default_model:
             request.model_id = default_model
         else:
@@ -51,7 +53,8 @@ async def chat(request: ChatRequest):
             model_id=request.model_id,
             document_ids=request.document_ids,
             temperature=request.temperature,
-            max_tokens=request.max_tokens
+            max_tokens=request.max_tokens,
+            user_keys=user_keys
         )
 
         # Get conversation history: combine session history with request messages

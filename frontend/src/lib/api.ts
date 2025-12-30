@@ -1,3 +1,5 @@
+import { getAPIKeyHeaders } from './apiKeys';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface ApiResponse<T> {
@@ -21,6 +23,7 @@ class ApiClient {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...getAPIKeyHeaders(), // Include user API keys from localStorage
         ...options.headers,
       },
     });
@@ -44,6 +47,7 @@ class ApiClient {
 
     const response = await fetch(`${this.baseUrl}/api/documents/upload`, {
       method: 'POST',
+      headers: getAPIKeyHeaders(), // Include user API keys
       body: formData,
     });
 

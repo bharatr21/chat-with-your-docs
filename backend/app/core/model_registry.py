@@ -4,6 +4,7 @@ Dynamic model registry based on available API keys
 from typing import List, Optional
 from app.config import settings
 from app.models.schemas import ModelInfo
+from app.models.user_keys import UserAPIKeys
 
 
 class ModelRegistry:
@@ -39,19 +40,52 @@ class ModelRegistry:
     }
 
     @classmethod
-    def get_available_models(cls) -> List[ModelInfo]:
-        """Get list of available models based on API keys"""
+    def _get_api_key(cls, env_key: str, user_keys: Optional[UserAPIKeys] = None) -> Optional[str]:
+        """
+        Get API key with priority: user-provided > server settings
+
+        Args:
+            env_key: Environment key name (e.g., "OPENAI_API_KEY")
+            user_keys: Optional user-provided API keys
+
+        Returns:
+            API key if available, None otherwise
+        """
+        # Check user-provided keys first
+        if user_keys:
+            if env_key == "OPENAI_API_KEY" and user_keys.openai_api_key:
+                return user_keys.openai_api_key
+            elif env_key == "ANTHROPIC_API_KEY" and user_keys.anthropic_api_key:
+                return user_keys.anthropic_api_key
+            elif env_key == "GEMINI_API_KEY" and user_keys.gemini_api_key:
+                return user_keys.gemini_api_key
+            elif env_key == "HF_API_KEY" and user_keys.hf_api_key:
+                return user_keys.hf_api_key
+
+        # Fall back to server settings
+        if env_key == "HF_API_KEY":
+            return settings.get_hf_api_key()
+        else:
+            return getattr(settings, env_key, None)
+
+    @classmethod
+    def get_available_models(cls, user_keys: Optional[UserAPIKeys] = None) -> List[ModelInfo]:
+        """
+        Get list of available models based on API keys
+
+        Args:
+            user_keys: Optional user-provided API keys (priority over server keys)
+
+        Returns:
+            List of ModelInfo with availability based on merged keys
+        """
         models = []
 
         for model_id, config in cls.MODEL_DEFINITIONS.items():
             env_key = config["env_key"]
 
-            # Check for API key availability
-            if env_key == "HF_API_KEY":
-                api_key = settings.get_hf_api_key()
-            else:
-                api_key = getattr(settings, env_key, None)
-
+            # Check for API key availability (user keys > server keys)
+            api_key = cls._get_api_key(env_key, user_keys)
             available = bool(api_key)
 
             models.append(ModelInfo(
@@ -66,24 +100,37 @@ class ModelRegistry:
         return models
 
     @classmethod
-    def is_model_available(cls, model_id: str) -> bool:
-        """Check if a specific model is available"""
+    def is_model_available(cls, model_id: str, user_keys: Optional[UserAPIKeys] = None) -> bool:
+        """
+        Check if a specific model is available
+
+        Args:
+            model_id: Model identifier
+            user_keys: Optional user-provided API keys
+
+        Returns:
+            True if model is available with current keys
+        """
         if model_id not in cls.MODEL_DEFINITIONS:
             return False
 
         config = cls.MODEL_DEFINITIONS[model_id]
         env_key = config["env_key"]
 
-        if env_key == "HF_API_KEY":
-            api_key = settings.get_hf_api_key()
-        else:
-            api_key = getattr(settings, env_key, None)
-
+        api_key = cls._get_api_key(env_key, user_keys)
         return bool(api_key)
 
     @classmethod
-    def get_default_model(cls) -> Optional[str]:
-        """Get the first available model as default"""
+    def get_default_model(cls, user_keys: Optional[UserAPIKeys] = None) -> Optional[str]:
+        """
+        Get the first available model as default
+
+        Args:
+            user_keys: Optional user-provided API keys
+
+        Returns:
+            Default model ID or None if no models available
+        """
         # Prefer HuggingFace (Mixtral) as default
         for model_id in [
             "mistralai/Mixtral-8x7B-Instruct-v0.1",
@@ -91,7 +138,7 @@ class ModelRegistry:
             "claude-haiku-4-5",
             "gemini-3-flash-preview"
         ]:
-            if cls.is_model_available(model_id):
+            if cls.is_model_available(model_id, user_keys):
                 return model_id
         return None
 

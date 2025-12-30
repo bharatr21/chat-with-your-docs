@@ -1,19 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FileText, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Settings, ChevronLeft, ChevronRight, Key } from 'lucide-react';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { DocumentUpload } from '@/components/documents/DocumentUpload';
 import { DocumentSelector } from '@/components/documents/DocumentSelector';
 import { ModelSelector } from '@/components/models/ModelSelector';
+import { ApiKeySettings } from '@/components/settings/ApiKeySettings';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useModels } from '@/hooks/useModels';
+import { Button } from '@/components/ui/button';
 
 export default function Home() {
   const [sessionId] = useState(() => crypto.randomUUID());
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string>('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const {
     documents,
@@ -59,9 +62,19 @@ export default function Home() {
         <div className="w-80 h-full flex flex-col">
           {/* Header */}
           <div className="p-4 border-b">
-            <div className="flex items-center gap-2">
-              <FileText className="w-6 h-6 text-primary" />
-              <h1 className="text-lg font-semibold">Chat with Your Docs</h1>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="w-6 h-6 text-primary" />
+                <h1 className="text-lg font-semibold">Chat with Your Docs</h1>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSettingsOpen(true)}
+                title="API Key Settings"
+              >
+                <Key className="w-4 h-4" />
+              </Button>
             </div>
           </div>
 
@@ -125,6 +138,9 @@ export default function Home() {
           selectedModelId={selectedModelId}
         />
       </main>
+
+      {/* API Key Settings Modal */}
+      <ApiKeySettings open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 }

@@ -64,12 +64,13 @@ class TestRAGPipeline:
     def test_init_creates_llm(self, mock_llm_provider, mock_retriever):
         """Test that initialization creates LLM instance"""
         pipeline = RAGPipeline(model_id="test-model")
-        
+
         mock_llm_provider.create_llm.assert_called_once_with(
             model_id="test-model",
             temperature=0.7,
             max_tokens=1024,
-            streaming=True
+            streaming=True,
+            user_keys=None
         )
 
     def test_init_creates_retriever(self, mock_llm_provider, mock_retriever):
