@@ -1,35 +1,41 @@
 """
 LangChain RAG pipeline
 """
-from typing import List, Optional, AsyncIterator
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.documents import Document
 
-from app.services.llm.provider import LLMProvider
-from app.services.rag.retriever import HybridRetriever
+from collections.abc import AsyncIterator
+
+from langchain_core.prompts import ChatPromptTemplate
+
 from app.models.schemas import Message, RetrievedChunk
 from app.models.user_keys import UserAPIKeys
+from app.services.llm.provider import LLMProvider
+from app.services.rag.retriever import HybridRetriever
 
 
 class RAGPipeline:
     """LangChain-based RAG pipeline"""
 
-    RAG_PROMPT = ChatPromptTemplate.from_messages([
-        ("system", """You are a helpful AI assistant. Answer the user's question based on the provided context.
+    RAG_PROMPT = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                """You are a helpful AI assistant. Answer the user's question based on the provided context.
 If the context doesn't contain relevant information, say so honestly. Always cite specific sources when possible.
 
 Context:
-{context}"""),
-        ("user", "{question}")
-    ])
+{context}""",
+            ),
+            ("user", "{question}"),
+        ]
+    )
 
     def __init__(
         self,
         model_id: str,
-        document_ids: List[str] = None,
+        document_ids: list[str] = None,
         temperature: float = 0.7,
         max_tokens: int = 1024,
-        user_keys: Optional[UserAPIKeys] = None
+        user_keys: UserAPIKeys | None = None,
     ):
         self.model_id = model_id
         self.document_ids = document_ids or []
@@ -43,7 +49,7 @@ Context:
             temperature=temperature,
             max_tokens=max_tokens,
             streaming=True,
-            user_keys=user_keys
+            user_keys=user_keys,
         )
 
         self.retriever = HybridRetriever(document_ids=document_ids)
@@ -78,10 +84,7 @@ Context:
         return docs, context
 
     async def generate_response(
-        self,
-        query: str,
-        context: str,
-        stream: bool = True
+        self, query: str, context: str, stream: bool = True
     ) -> AsyncIterator[str]:
         """
         Generate response using LLM
@@ -95,16 +98,15 @@ Context:
             Response chunks
         """
         # Format prompt
-        messages = self.RAG_PROMPT.format_messages(
-            context=context,
-            question=query
-        )
+        messages = self.RAG_PROMPT.format_messages(context=context, question=query)
 
         # Convert to LangChain messages
-        lc_messages = LLMProvider.format_messages([
-            {"role": "system", "content": messages[0].content},
-            {"role": "user", "content": messages[1].content}
-        ])
+        lc_messages = LLMProvider.format_messages(
+            [
+                {"role": "system", "content": messages[0].content},
+                {"role": "user", "content": messages[1].content},
+            ]
+        )
 
         # Stream response
         if stream:
@@ -115,10 +117,7 @@ Context:
             yield response.content
 
     async def run(
-        self,
-        query: str,
-        conversation_history: Optional[List[Message]] = None,
-        stream: bool = True
+        self, query: str, conversation_history: list[Message] | None = None, stream: bool = True
     ) -> AsyncIterator[str]:
         """
         Run complete RAG pipeline
@@ -145,7 +144,7 @@ Context:
         async for chunk in self.generate_response(query, full_context, stream):
             yield chunk
 
-    def _format_conversation_history(self, messages: List[Message]) -> str:
+    def _format_conversation_history(self, messages: list[Message]) -> str:
         """Format conversation history for context"""
         history_parts = ["Previous conversation:"]
 
@@ -155,16 +154,14 @@ Context:
 
         return "\n".join(history_parts)
 
-    def get_retrieved_chunks(self, query: str, top_k: int = 5) -> List[RetrievedChunk]:
+    def get_retrieved_chunks(self, query: str, top_k: int = 5) -> list[RetrievedChunk]:
         """Get retrieved chunks with metadata for client"""
         docs = self.retriever.retrieve(query, top_k=top_k)
 
         chunks = []
         for doc in docs:
-            chunks.append(RetrievedChunk(
-                content=doc.page_content,
-                metadata=doc.metadata,
-                score=0.0
-            ))
+            chunks.append(
+                RetrievedChunk(content=doc.page_content, metadata=doc.metadata, score=0.0)
+            )
 
         return chunks

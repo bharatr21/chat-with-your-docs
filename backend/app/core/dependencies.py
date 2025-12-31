@@ -1,17 +1,17 @@
 """
 FastAPI dependencies
 """
-from typing import Optional
+
 from fastapi import Header
 
 from app.models.user_keys import UserAPIKeys
 
 
 async def get_user_api_keys(
-    x_openai_api_key: Optional[str] = Header(None),
-    x_anthropic_api_key: Optional[str] = Header(None),
-    x_gemini_api_key: Optional[str] = Header(None),
-    x_hf_api_key: Optional[str] = Header(None),
+    x_openai_api_key: str | None = Header(None),
+    x_anthropic_api_key: str | None = Header(None),
+    x_gemini_api_key: str | None = Header(None),
+    x_hf_api_key: str | None = Header(None),
 ) -> UserAPIKeys:
     """
     Extract user-provided API keys from request headers

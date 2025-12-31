@@ -1,15 +1,16 @@
 """
 LLM provider factory for different model providers
 """
-from typing import AsyncIterator, Optional
-from langchain_openai import ChatOpenAI
+
+from collections.abc import AsyncIterator
+
 from langchain_anthropic import ChatAnthropic
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
-from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_openai import ChatOpenAI
 
-from app.config import settings
 from app.core.model_registry import ModelRegistry
 from app.models.user_keys import UserAPIKeys
 
@@ -23,7 +24,7 @@ class LLMProvider:
         temperature: float = 0.7,
         max_tokens: int = 1024,
         streaming: bool = True,
-        user_keys: Optional[UserAPIKeys] = None
+        user_keys: UserAPIKeys | None = None,
     ) -> BaseChatModel:
         """
         Create LLM instance based on model ID
@@ -54,7 +55,7 @@ class LLMProvider:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 streaming=streaming,
-                api_key=api_key
+                api_key=api_key,
             )
 
         elif provider == "Anthropic":
@@ -63,7 +64,7 @@ class LLMProvider:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 streaming=streaming,
-                api_key=api_key
+                api_key=api_key,
             )
 
         elif provider == "Google":
@@ -72,7 +73,7 @@ class LLMProvider:
                 temperature=temperature,
                 max_output_tokens=max_tokens,
                 streaming=streaming,
-                google_api_key=api_key
+                google_api_key=api_key,
             )
 
         elif provider == "HuggingFace":
@@ -96,7 +97,7 @@ class LLMProvider:
     ) -> AsyncIterator[str]:
         """Stream LLM response"""
         async for chunk in llm.astream(messages):
-            if hasattr(chunk, 'content'):
+            if hasattr(chunk, "content"):
                 yield chunk.content
             else:
                 yield str(chunk)

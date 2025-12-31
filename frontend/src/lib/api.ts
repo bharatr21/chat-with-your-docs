@@ -2,11 +2,6 @@ import { getAPIKeyHeaders } from './apiKeys';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-interface ApiResponse<T> {
-  data?: T;
-  error?: string;
-}
-
 class ApiClient {
   private baseUrl: string;
 

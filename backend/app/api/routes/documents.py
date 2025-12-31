@@ -1,21 +1,23 @@
 """
 Documents API endpoints
 """
+
 import os
-import uuid
 import shutil
-from fastapi import APIRouter, HTTPException, UploadFile, File
+import uuid
+
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.config import settings
+from app.db.chroma import chroma_manager
 from app.models.schemas import (
-    DocumentMetadata,
-    DocumentUploadResponse,
+    DocumentDeleteResponse,
     DocumentInfo,
     DocumentListResponse,
-    DocumentDeleteResponse
+    DocumentMetadata,
+    DocumentUploadResponse,
 )
 from app.services.document import DocumentProcessor, metadata_manager
-from app.db.chroma import chroma_manager
 
 router = APIRouter()
 
@@ -32,8 +34,7 @@ async def upload_document(file: UploadFile = File(...)):
 
     if not processor.is_supported(file.filename):
         raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file type. Supported: PDF, DOCX, TXT, MD, CSV"
+            status_code=400, detail="Unsupported file type. Supported: PDF, DOCX, TXT, MD, CSV"
         )
 
     # Check file size
@@ -44,7 +45,7 @@ async def upload_document(file: UploadFile = File(...)):
     if file_size > settings.MAX_FILE_SIZE:
         raise HTTPException(
             status_code=400,
-            detail=f"File too large. Maximum size: {settings.MAX_FILE_SIZE // (1024*1024)}MB"
+            detail=f"File too large. Maximum size: {settings.MAX_FILE_SIZE // (1024 * 1024)}MB",
         )
 
     # Generate document ID
@@ -75,7 +76,7 @@ async def upload_document(file: UploadFile = File(...)):
             file_type=metadata.get("file_type", "unknown"),
             page_count=metadata.get("page_count"),
             headers=metadata.get("headers", []),
-            chunk_count=metadata.get("chunk_count")
+            chunk_count=metadata.get("chunk_count"),
         )
 
         return DocumentUploadResponse(
@@ -83,14 +84,14 @@ async def upload_document(file: UploadFile = File(...)):
             filename=file.filename,
             status="success",
             message="Document uploaded and processed successfully",
-            metadata=doc_metadata
+            metadata=doc_metadata,
         )
 
     except Exception as e:
         # Clean up on error
         if os.path.exists(file_path):
             os.remove(file_path)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("", response_model=DocumentListResponse)
@@ -109,8 +110,8 @@ async def list_documents():
                 file_type=meta.get("file_type", "unknown"),
                 page_count=meta.get("page_count"),
                 headers=meta.get("headers", []),
-                chunk_count=meta.get("chunk_count")
-            )
+                chunk_count=meta.get("chunk_count"),
+            ),
         )
         documents.append(doc_info)
 
@@ -131,11 +132,11 @@ async def get_document(document_id: str):
                 file_type=meta.get("file_type", "unknown"),
                 page_count=meta.get("page_count"),
                 headers=meta.get("headers", []),
-                chunk_count=meta.get("chunk_count")
-            )
+                chunk_count=meta.get("chunk_count"),
+            ),
         )
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Document not found")
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Document not found") from e
 
 
 @router.delete("/{document_id}", response_model=DocumentDeleteResponse)
@@ -158,10 +159,8 @@ async def delete_document(document_id: str):
                 os.remove(os.path.join(UPLOADS_DIR, filename))
 
         return DocumentDeleteResponse(
-            id=document_id,
-            status="deleted",
-            message="Document deleted successfully"
+            id=document_id, status="deleted", message="Document deleted successfully"
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

@@ -1,7 +1,9 @@
 """
 Tests for document processor service
 """
+
 import pytest
+
 from app.services.document.processor import DocumentProcessor
 
 
@@ -69,11 +71,7 @@ def test_process_document(processor, tmp_path):
     content = "Test content for document processing.\n\n" * 50
     file_path.write_text(content)
 
-    chunks, metadata = processor.process_document(
-        str(file_path),
-        "test.txt",
-        "doc-456"
-    )
+    chunks, metadata = processor.process_document(str(file_path), "test.txt", "doc-456")
 
     assert len(chunks) >= 1
     assert metadata["chunk_count"] == len(chunks)

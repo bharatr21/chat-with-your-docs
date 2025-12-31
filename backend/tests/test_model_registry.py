@@ -1,8 +1,9 @@
 """
 Tests for model registry
 """
-import pytest
+
 from unittest.mock import MagicMock, patch
+
 from app.core.model_registry import ModelRegistry
 from app.models.schemas import ModelInfo
 
@@ -80,8 +81,7 @@ class TestModelRegistry:
     def test_get_available_models_with_multiple_keys(self):
         """Test getting available models with multiple API keys"""
         mock_settings = create_mock_settings(
-            HF_API_KEY="test_hf_key",
-            OPENAI_API_KEY="test_openai_key"
+            HF_API_KEY="test_hf_key", OPENAI_API_KEY="test_openai_key"
         )
 
         with patch("app.core.model_registry.settings", mock_settings):
@@ -215,7 +215,7 @@ class TestModelRegistry:
             HF_API_KEY="hf_key",
             OPENAI_API_KEY="openai_key",
             ANTHROPIC_API_KEY="anthropic_key",
-            GEMINI_API_KEY="gemini_key"
+            GEMINI_API_KEY="gemini_key",
         )
 
         with patch("app.core.model_registry.settings", mock_settings):

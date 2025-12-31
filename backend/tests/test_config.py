@@ -1,9 +1,9 @@
 """
 Tests for application configuration
 """
+
 import importlib
-import os
-import pytest
+
 from app.config import Settings
 
 
@@ -57,6 +57,7 @@ def test_module_level_settings_with_reload(monkeypatch):
 
     # Reload the config module to recreate the global settings instance
     import app.config
+
     importlib.reload(app.config)
 
     # Now the module-level settings should have the new values
@@ -86,7 +87,9 @@ def test_cors_origins_list_multiple():
 
 def test_cors_origins_list_with_spaces():
     """Test parsing CORS origins with spaces"""
-    settings = Settings(CORS_ORIGINS=" http://localhost:3000 , https://example.com , http://app.local ")
+    settings = Settings(
+        CORS_ORIGINS=" http://localhost:3000 , https://example.com , http://app.local "
+    )
     expected = ["http://localhost:3000", "https://example.com", "http://app.local"]
     assert settings.cors_origins_list == expected
 
@@ -158,10 +161,7 @@ def test_session_storage_configuration():
 
 def test_chroma_configuration():
     """Test ChromaDB configuration"""
-    settings = Settings(
-        CHROMA_DB_PATH="/custom/chroma",
-        CHROMA_COLLECTION_NAME="test_collection"
-    )
+    settings = Settings(CHROMA_DB_PATH="/custom/chroma", CHROMA_COLLECTION_NAME="test_collection")
     assert settings.CHROMA_DB_PATH == "/custom/chroma"
     assert settings.CHROMA_COLLECTION_NAME == "test_collection"
 

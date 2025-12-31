@@ -1,11 +1,12 @@
 """
 FastAPI Application Entry Point
 """
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import settings
 from app.api.routes import api_router
+from app.config import settings
 
 # Create FastAPI app
 app = FastAPI(
@@ -13,7 +14,7 @@ app = FastAPI(
     version=settings.APP_VERSION,
     description="RAG-powered chat API with multi-model support",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # Configure CORS
@@ -32,11 +33,7 @@ app.include_router(api_router, prefix="/api")
 @app.get("/")
 async def root():
     """Root endpoint"""
-    return {
-        "name": settings.APP_NAME,
-        "version": settings.APP_VERSION,
-        "status": "running"
-    }
+    return {"name": settings.APP_NAME, "version": settings.APP_VERSION, "status": "running"}
 
 
 @app.get("/health")
@@ -47,9 +44,5 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host=settings.HOST,
-        port=settings.PORT,
-        reload=settings.DEBUG
-    )
+
+    uvicorn.run("app.main:app", host=settings.HOST, port=settings.PORT, reload=settings.DEBUG)

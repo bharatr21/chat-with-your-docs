@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ChevronDown, Cpu, Check, Loader2 } from 'lucide-react';
-import type { Model, ModelGroup } from '@/types/model';
+import type { ModelGroup } from '@/types/model';
 
 interface ModelSelectorProps {
   groupedModels: ModelGroup[];

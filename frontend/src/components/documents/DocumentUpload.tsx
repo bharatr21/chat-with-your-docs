@@ -1,31 +1,31 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { Upload, X, FileText, Loader2 } from 'lucide-react';
+import { Upload, X, Loader2 } from 'lucide-react';
 
 interface DocumentUploadProps {
   onUpload: (file: File) => Promise<void>;
   isUploading: boolean;
 }
 
+const ACCEPTED_TYPES = ['.pdf', '.docx', '.txt', '.csv'];
+const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+
 export function DocumentUpload({ onUpload, isUploading }: DocumentUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const acceptedTypes = ['.pdf', '.docx', '.txt', '.csv'];
-  const maxSize = 50 * 1024 * 1024; // 50MB
-
-  const validateFile = (file: File): string | null => {
+  const validateFile = useCallback((file: File): string | null => {
     const extension = '.' + file.name.split('.').pop()?.toLowerCase();
-    if (!acceptedTypes.includes(extension)) {
-      return `Invalid file type. Accepted: ${acceptedTypes.join(', ')}`;
+    if (!ACCEPTED_TYPES.includes(extension)) {
+      return `Invalid file type. Accepted: ${ACCEPTED_TYPES.join(', ')}`;
     }
-    if (file.size > maxSize) {
+    if (file.size > MAX_SIZE) {
       return 'File too large. Maximum size is 50MB.';
     }
     return null;
-  };
+  }, []);
 
   const handleFile = useCallback(async (file: File) => {
     setError(null);
@@ -40,7 +40,7 @@ export function DocumentUpload({ onUpload, isUploading }: DocumentUploadProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
     }
-  }, [onUpload]);
+  }, [onUpload, validateFile]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -92,7 +92,7 @@ export function DocumentUpload({ onUpload, isUploading }: DocumentUploadProps) {
         <input
           ref={fileInputRef}
           type="file"
-          accept={acceptedTypes.join(',')}
+          accept={ACCEPTED_TYPES.join(',')}
           onChange={handleInputChange}
           className="hidden"
           disabled={isUploading}

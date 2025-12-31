@@ -1,9 +1,11 @@
 """
 Vercel AI SDK compatible streaming protocol
 """
+
 import json
 import uuid
-from typing import AsyncIterator, Dict, Any, Optional
+from collections.abc import AsyncIterator
+from typing import Any
 
 
 class VercelStreamFormatter:
@@ -11,8 +13,7 @@ class VercelStreamFormatter:
 
     @staticmethod
     async def format_stream(
-        chunks: AsyncIterator[str],
-        message_id: Optional[str] = None
+        chunks: AsyncIterator[str], message_id: str | None = None
     ) -> AsyncIterator[str]:
         """
         Format streaming chunks to Vercel AI SDK protocol
@@ -28,11 +29,7 @@ class VercelStreamFormatter:
             async for chunk in chunks:
                 if chunk:
                     # Format as Vercel AI SDK text-delta
-                    delta_event = {
-                        "type": "text-delta",
-                        "id": message_id,
-                        "delta": chunk
-                    }
+                    delta_event = {"type": "text-delta", "id": message_id, "delta": chunk}
                     yield f"data: {json.dumps(delta_event)}\n\n"
 
             # Send completion marker
@@ -40,23 +37,13 @@ class VercelStreamFormatter:
 
         except Exception as e:
             # Send error event
-            error_event = {
-                "type": "error",
-                "id": message_id,
-                "error": str(e)
-            }
+            error_event = {"type": "error", "id": message_id, "error": str(e)}
             yield f"data: {json.dumps(error_event)}\n\n"
 
     @staticmethod
-    def format_sources(sources: list[Dict[str, Any]], message_id: str) -> str:
+    def format_sources(sources: list[dict[str, Any]], message_id: str) -> str:
         """Format sources metadata event"""
-        sources_event = {
-            "type": "metadata",
-            "id": message_id,
-            "metadata": {
-                "sources": sources
-            }
-        }
+        sources_event = {"type": "metadata", "id": message_id, "metadata": {"sources": sources}}
         return f"data: {json.dumps(sources_event)}\n\n"
 
 

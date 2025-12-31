@@ -185,10 +185,9 @@ describe('DocumentUpload', () => {
       value: [file],
       writable: false,
     });
-    
-    const originalValue = input.value;
+
     fireEvent.change(input);
-    
+
     // Input value should be reset to allow same file selection again
     await waitFor(() => {
       expect(input.value).toBe('');

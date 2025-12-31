@@ -1,12 +1,13 @@
 """
 Models API endpoints
 """
-from fastapi import APIRouter, HTTPException, Depends
 
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.core.dependencies import get_user_api_keys
 from app.core.model_registry import ModelRegistry
 from app.models.schemas import ModelsResponse
 from app.models.user_keys import UserAPIKeys
-from app.core.dependencies import get_user_api_keys
 
 router = APIRouter()
 

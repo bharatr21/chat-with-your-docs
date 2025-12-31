@@ -1,13 +1,14 @@
 """
 Sessions API endpoints
 """
+
 from fastapi import APIRouter, HTTPException
 
 from app.models.schemas import (
     SessionCreate,
+    SessionDeleteResponse,
     SessionInfo,
     SessionListResponse,
-    SessionDeleteResponse
 )
 from app.services.session import session_store
 
@@ -18,9 +19,7 @@ router = APIRouter()
 async def create_session(request: SessionCreate):
     """Create a new chat session"""
     session = session_store.create_session(
-        model_id=request.model_id,
-        document_ids=request.document_ids,
-        name=request.name
+        model_id=request.model_id, document_ids=request.document_ids, name=request.name
     )
     return session
 
@@ -38,8 +37,8 @@ async def get_session(session_id: str):
     try:
         session = session_store.get_session(session_id)
         return session
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Session not found")
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Session not found") from e
 
 
 @router.delete("/{session_id}", response_model=SessionDeleteResponse)
@@ -50,7 +49,5 @@ async def delete_session(session_id: str):
 
     session_store.delete_session(session_id)
     return SessionDeleteResponse(
-        id=session_id,
-        status="deleted",
-        message="Session deleted successfully"
+        id=session_id, status="deleted", message="Session deleted successfully"
     )

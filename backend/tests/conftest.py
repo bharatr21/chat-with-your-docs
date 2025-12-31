@@ -1,8 +1,10 @@
 """
 Pytest fixtures for backend tests
 """
+
 import os
 import tempfile
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -26,5 +28,7 @@ def client():
 def sample_text_file(tmp_path):
     """Create a sample text file for testing"""
     file_path = tmp_path / "test_document.txt"
-    file_path.write_text("This is a test document.\n\nIt has multiple paragraphs.\n\nUsed for testing RAG functionality.")
+    file_path.write_text(
+        "This is a test document.\n\nIt has multiple paragraphs.\n\nUsed for testing RAG functionality."
+    )
     return file_path

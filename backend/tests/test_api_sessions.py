@@ -1,14 +1,12 @@
 """
 Tests for /api/sessions endpoints
 """
-import pytest
 
 
 def test_create_session(client):
     """Test creating a new session"""
     response = client.post(
-        "/api/sessions",
-        json={"model_id": "mistralai/Mixtral-8x7B-Instruct-v0.1"}
+        "/api/sessions", json={"model_id": "mistralai/Mixtral-8x7B-Instruct-v0.1"}
     )
     assert response.status_code == 200
 
@@ -20,10 +18,7 @@ def test_create_session(client):
 def test_get_sessions(client):
     """Test listing sessions"""
     # Create a session first
-    client.post(
-        "/api/sessions",
-        json={"model_id": "mistralai/Mixtral-8x7B-Instruct-v0.1"}
-    )
+    client.post("/api/sessions", json={"model_id": "mistralai/Mixtral-8x7B-Instruct-v0.1"})
 
     response = client.get("/api/sessions")
     assert response.status_code == 200
@@ -37,8 +32,7 @@ def test_get_session_by_id(client):
     """Test getting a specific session"""
     # Create a session
     create_response = client.post(
-        "/api/sessions",
-        json={"model_id": "mistralai/Mixtral-8x7B-Instruct-v0.1"}
+        "/api/sessions", json={"model_id": "mistralai/Mixtral-8x7B-Instruct-v0.1"}
     )
     session_id = create_response.json()["id"]
 
@@ -62,8 +56,7 @@ def test_delete_session(client):
     """Test deleting a session"""
     # Create a session
     create_response = client.post(
-        "/api/sessions",
-        json={"model_id": "mistralai/Mixtral-8x7B-Instruct-v0.1"}
+        "/api/sessions", json={"model_id": "mistralai/Mixtral-8x7B-Instruct-v0.1"}
     )
     session_id = create_response.json()["id"]
 

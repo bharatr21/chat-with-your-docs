@@ -1,12 +1,14 @@
 """
 Document processing: parsing and chunking
 """
+
 import os
-from typing import List, Dict, Any
-import pypdf
+from typing import Any
+
 import docx2txt
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+import pypdf
 from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.config import settings
 
@@ -27,7 +29,7 @@ class DocumentProcessor:
             chunk_size=settings.CHUNK_SIZE,
             chunk_overlap=settings.CHUNK_OVERLAP,
             length_function=len,
-            separators=["\n\n", "\n", ". ", " ", ""]
+            separators=["\n\n", "\n", ". ", " ", ""],
         )
 
     def is_supported(self, filename: str) -> bool:
@@ -35,7 +37,7 @@ class DocumentProcessor:
         ext = os.path.splitext(filename)[1].lower()
         return ext in self.SUPPORTED_TYPES
 
-    def extract_text(self, file_path: str, filename: str) -> tuple[str, Dict[str, Any]]:
+    def extract_text(self, file_path: str, filename: str) -> tuple[str, dict[str, Any]]:
         """
         Extract text and metadata from document
 
@@ -46,7 +48,7 @@ class DocumentProcessor:
         metadata = {
             "filename": filename,
             "file_type": self.SUPPORTED_TYPES.get(ext, "unknown"),
-            "file_size": os.path.getsize(file_path)
+            "file_size": os.path.getsize(file_path),
         }
 
         if ext == ".pdf":
@@ -62,19 +64,19 @@ class DocumentProcessor:
 
         return text, metadata
 
-    def _extract_pdf(self, file_path: str) -> tuple[str, Dict[str, Any]]:
+    def _extract_pdf(self, file_path: str) -> tuple[str, dict[str, Any]]:
         """Extract text from PDF"""
         text_parts = []
         metadata = {"headers": []}
 
         try:
-            with open(file_path, 'rb') as file:
+            with open(file_path, "rb") as file:
                 pdf_reader = pypdf.PdfReader(file)
                 metadata["page_count"] = len(pdf_reader.pages)
 
                 # Extract metadata
                 if pdf_reader.metadata:
-                    title = pdf_reader.metadata.get('/Title', '')
+                    title = pdf_reader.metadata.get("/Title", "")
                     if title:
                         metadata["title"] = title
 
@@ -85,11 +87,11 @@ class DocumentProcessor:
                         text_parts.append(f"[Page {page_num}]\n{page_text}")
 
         except Exception as e:
-            raise ValueError(f"Error processing PDF: {str(e)}")
+            raise ValueError(f"Error processing PDF: {str(e)}") from e
 
         return "\n\n".join(text_parts), metadata
 
-    def _extract_docx(self, file_path: str) -> tuple[str, Dict[str, Any]]:
+    def _extract_docx(self, file_path: str) -> tuple[str, dict[str, Any]]:
         """Extract text from DOCX"""
         metadata = {}
 
@@ -101,26 +103,21 @@ class DocumentProcessor:
             metadata["page_count"] = max(1, word_count // 500)
 
         except Exception as e:
-            raise ValueError(f"Error processing DOCX: {str(e)}")
+            raise ValueError(f"Error processing DOCX: {str(e)}") from e
 
         return text, metadata
 
     def _extract_text_file(self, file_path: str) -> str:
         """Extract text from plain text file"""
         try:
-            with open(file_path, 'r', encoding='utf-8') as file:
+            with open(file_path, encoding="utf-8") as file:
                 return file.read()
         except UnicodeDecodeError:
             # Try with different encoding
-            with open(file_path, 'r', encoding='latin-1') as file:
+            with open(file_path, encoding="latin-1") as file:
                 return file.read()
 
-    def chunk_text(
-        self,
-        text: str,
-        metadata: Dict[str, Any],
-        doc_id: str
-    ) -> List[Document]:
+    def chunk_text(self, text: str, metadata: dict[str, Any], doc_id: str) -> list[Document]:
         """
         Chunk text into smaller pieces
 
@@ -142,21 +139,15 @@ class DocumentProcessor:
                 **metadata,
                 "doc_id": doc_id,
                 "chunk_index": i,
-                "chunk_total": len(chunks)
+                "chunk_total": len(chunks),
             }
-            documents.append(Document(
-                page_content=chunk,
-                metadata=chunk_metadata
-            ))
+            documents.append(Document(page_content=chunk, metadata=chunk_metadata))
 
         return documents
 
     def process_document(
-        self,
-        file_path: str,
-        filename: str,
-        doc_id: str
-    ) -> tuple[List[Document], Dict[str, Any]]:
+        self, file_path: str, filename: str, doc_id: str
+    ) -> tuple[list[Document], dict[str, Any]]:
         """
         Complete document processing pipeline
 

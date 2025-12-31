@@ -1,7 +1,6 @@
 """
 Tests for /api/documents endpoints
 """
-import pytest
 
 
 def test_get_documents_empty(client):
@@ -18,8 +17,7 @@ def test_upload_document(client, sample_text_file):
     """Test uploading a document"""
     with open(sample_text_file, "rb") as f:
         response = client.post(
-            "/api/documents/upload",
-            files={"file": ("test.txt", f, "text/plain")}
+            "/api/documents/upload", files={"file": ("test.txt", f, "text/plain")}
         )
 
     assert response.status_code == 200
@@ -39,8 +37,7 @@ def test_upload_unsupported_file(client, tmp_path):
 
     with open(file_path, "rb") as f:
         response = client.post(
-            "/api/documents/upload",
-            files={"file": ("test.exe", f, "application/octet-stream")}
+            "/api/documents/upload", files={"file": ("test.exe", f, "application/octet-stream")}
         )
 
     assert response.status_code == 400
@@ -51,8 +48,7 @@ def test_get_document_by_id(client, sample_text_file):
     # Upload a document first
     with open(sample_text_file, "rb") as f:
         upload_response = client.post(
-            "/api/documents/upload",
-            files={"file": ("test.txt", f, "text/plain")}
+            "/api/documents/upload", files={"file": ("test.txt", f, "text/plain")}
         )
     doc_id = upload_response.json()["id"]
 
@@ -72,8 +68,7 @@ def test_delete_document(client, sample_text_file):
     # Upload a document
     with open(sample_text_file, "rb") as f:
         upload_response = client.post(
-            "/api/documents/upload",
-            files={"file": ("test.txt", f, "text/plain")}
+            "/api/documents/upload", files={"file": ("test.txt", f, "text/plain")}
         )
     doc_id = upload_response.json()["id"]
 

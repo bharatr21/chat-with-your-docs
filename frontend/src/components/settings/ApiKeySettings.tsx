@@ -71,7 +71,7 @@ export function ApiKeySettings({ open, onOpenChange }: ApiKeySettingsProps) {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="text-xs">
-            Your API keys are stored only in your browser's local storage and sent directly to the backend.
+            Your API keys are stored only in your browser&apos;s local storage and sent directly to the backend.
             They are never logged or stored on the server.
           </AlertDescription>
         </Alert>

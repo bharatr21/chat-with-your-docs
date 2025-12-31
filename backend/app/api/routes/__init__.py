@@ -1,8 +1,10 @@
 """
 API route modules
 """
+
 from fastapi import APIRouter
-from . import chat, documents, sessions, models
+
+from . import chat, documents, models, sessions
 
 api_router = APIRouter()
 

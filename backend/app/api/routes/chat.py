@@ -1,16 +1,17 @@
 """
 Chat API endpoints with streaming support
 """
-from fastapi import APIRouter, HTTPException, Depends
+
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
+from app.core.dependencies import get_user_api_keys
+from app.core.model_registry import ModelRegistry
+from app.core.streaming import VercelStreamFormatter
 from app.models.schemas import ChatRequest, Message
 from app.models.user_keys import UserAPIKeys
 from app.services.rag import RAGPipeline
 from app.services.session import session_store
-from app.core.streaming import VercelStreamFormatter
-from app.core.model_registry import ModelRegistry
-from app.core.dependencies import get_user_api_keys
 
 router = APIRouter()
 
@@ -30,7 +31,7 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
         else:
             raise HTTPException(
                 status_code=400,
-                detail="No available models. Please configure at least one API key."
+                detail="No available models. Please configure at least one API key.",
             )
 
     # Get or create session
@@ -54,7 +55,7 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
             document_ids=request.document_ids,
             temperature=request.temperature,
             max_tokens=request.max_tokens,
-            user_keys=user_keys
+            user_keys=user_keys,
         )
 
         # Get conversation history: combine session history with request messages
@@ -75,17 +76,13 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
                 # Buffer chunks while streaming
                 async def buffered_stream():
                     async for chunk in pipeline.run(
-                        query=user_message.content,
-                        conversation_history=history,
-                        stream=True
+                        query=user_message.content, conversation_history=history, stream=True
                     ):
                         full_response.append(chunk)
                         yield chunk
 
                 # Format entire stream (sends [DONE] only at the end)
-                async for formatted in VercelStreamFormatter.format_stream(
-                    buffered_stream()
-                ):
+                async for formatted in VercelStreamFormatter.format_stream(buffered_stream()):
                     yield formatted
 
                 # Save messages to session if session exists
@@ -93,10 +90,7 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
                     # Add user message
                     session_store.add_message(request.session_id, user_message)
                     # Add assistant response
-                    assistant_msg = Message(
-                        role="assistant",
-                        content="".join(full_response)
-                    )
+                    assistant_msg = Message(role="assistant", content="".join(full_response))
                     session_store.add_message(request.session_id, assistant_msg)
 
             return StreamingResponse(
@@ -106,15 +100,13 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
                     "Cache-Control": "no-cache",
                     "Connection": "keep-alive",
                     "X-Vercel-AI-UI-Message-Stream": "v1",
-                }
+                },
             )
         else:
             # Non-streaming response
             response_chunks = []
             async for chunk in pipeline.run(
-                query=user_message.content,
-                conversation_history=history,
-                stream=False
+                query=user_message.content, conversation_history=history, stream=False
             ):
                 response_chunks.append(chunk)
 
@@ -129,7 +121,7 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
             return {
                 "message": response_text,
                 "model_id": request.model_id,
-                "session_id": request.session_id
+                "session_id": request.session_id,
             }
 
     except Exception as e:

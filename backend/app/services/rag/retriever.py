@@ -1,7 +1,9 @@
 """
 Hybrid retriever using HNSW (semantic) + BM25 (lexical) with RRF fusion
 """
-from typing import List, Dict, Any
+
+from typing import Any
+
 from langchain_core.documents import Document
 from rank_bm25 import BM25Okapi
 
@@ -12,11 +14,11 @@ from app.db.chroma import chroma_manager
 class HybridRetriever:
     """Hybrid retriever combining HNSW vector search and BM25 keyword search"""
 
-    def __init__(self, document_ids: List[str] = None):
+    def __init__(self, document_ids: list[str] = None):
         self.document_ids = document_ids or []
         self.vectorstore = chroma_manager.get_vectorstore()
 
-    def retrieve(self, query: str, top_k: int = None) -> List[Document]:
+    def retrieve(self, query: str, top_k: int = None) -> list[Document]:
         """
         Retrieve relevant documents using hybrid search with RRF fusion
 
@@ -43,15 +45,11 @@ class HybridRetriever:
         bm25_results = self._bm25_search(query, all_docs, top_k * 2)
 
         # Fuse results using Reciprocal Rank Fusion (RRF)
-        fused_results = self._reciprocal_rank_fusion(
-            vector_results,
-            bm25_results,
-            top_k
-        )
+        fused_results = self._reciprocal_rank_fusion(vector_results, bm25_results, top_k)
 
         return fused_results
 
-    def _get_documents_by_ids(self, doc_ids: List[str]) -> List[Document]:
+    def _get_documents_by_ids(self, doc_ids: list[str]) -> list[Document]:
         """Get all chunks for specified document IDs"""
         collection = chroma_manager.get_collection()
 
@@ -59,19 +57,18 @@ class HybridRetriever:
             if doc_ids:
                 # Filter by document IDs
                 result = collection.get(
-                    where={"doc_id": {"$in": doc_ids}},
-                    include=["documents", "metadatas"]
+                    where={"doc_id": {"$in": doc_ids}}, include=["documents", "metadatas"]
                 )
             else:
                 # Get all documents
                 result = collection.get(include=["documents", "metadatas"])
 
-            if not result or not result.get('documents'):
+            if not result or not result.get("documents"):
                 return []
 
             docs = []
-            for i, doc_text in enumerate(result['documents']):
-                metadata = result['metadatas'][i] if result.get('metadatas') else {}
+            for i, doc_text in enumerate(result["documents"]):
+                metadata = result["metadatas"][i] if result.get("metadatas") else {}
                 docs.append(Document(page_content=doc_text, metadata=metadata))
 
             return docs
@@ -79,18 +76,14 @@ class HybridRetriever:
         except Exception:
             return []
 
-    def _vector_search(self, query: str, k: int) -> List[tuple]:
+    def _vector_search(self, query: str, k: int) -> list[tuple]:
         """Perform HNSW vector similarity search"""
         try:
             filter_dict = None
             if self.document_ids:
                 filter_dict = {"doc_id": {"$in": self.document_ids}}
 
-            results = self.vectorstore.similarity_search_with_score(
-                query,
-                k=k,
-                filter=filter_dict
-            )
+            results = self.vectorstore.similarity_search_with_score(query, k=k, filter=filter_dict)
 
             # Convert scores to similarity (Chroma returns distance)
             return [(doc, 1.0 / (1.0 + score)) for doc, score in results]
@@ -98,7 +91,7 @@ class HybridRetriever:
         except Exception:
             return []
 
-    def _bm25_search(self, query: str, documents: List[Document], k: int) -> List[tuple]:
+    def _bm25_search(self, query: str, documents: list[Document], k: int) -> list[tuple]:
         """Perform BM25 keyword search"""
         if not documents:
             return []
@@ -117,7 +110,7 @@ class HybridRetriever:
             scores = bm25.get_scores(tokenized_query)
 
             # Get top-k results
-            doc_scores = list(zip(documents, scores))
+            doc_scores = list(zip(documents, scores, strict=True))
             doc_scores.sort(key=lambda x: x[1], reverse=True)
 
             return doc_scores[:k]
@@ -126,39 +119,31 @@ class HybridRetriever:
             return []
 
     def _reciprocal_rank_fusion(
-        self,
-        vector_results: List[tuple],
-        bm25_results: List[tuple],
-        k: int,
-        weight: float = 60.0
-    ) -> List[Document]:
+        self, vector_results: list[tuple], bm25_results: list[tuple], k: int, weight: float = 60.0
+    ) -> list[Document]:
         """
         Combine results using Reciprocal Rank Fusion (RRF)
 
         RRF formula: score = sum(1 / (rank + k)) for each result list
         """
-        doc_scores: Dict[str, Dict[str, Any]] = {}
+        doc_scores: dict[str, dict[str, Any]] = {}
 
         # Process vector search results
-        for rank, (doc, score) in enumerate(vector_results):
+        for rank, (doc, _score) in enumerate(vector_results):
             doc_key = doc.page_content[:100]  # Use content prefix as key
             if doc_key not in doc_scores:
                 doc_scores[doc_key] = {"doc": doc, "score": 0.0}
             doc_scores[doc_key]["score"] += 1.0 / (rank + weight)
 
         # Process BM25 results
-        for rank, (doc, score) in enumerate(bm25_results):
+        for rank, (doc, _score) in enumerate(bm25_results):
             doc_key = doc.page_content[:100]
             if doc_key not in doc_scores:
                 doc_scores[doc_key] = {"doc": doc, "score": 0.0}
             doc_scores[doc_key]["score"] += 1.0 / (rank + weight)
 
         # Sort by fused score
-        sorted_docs = sorted(
-            doc_scores.values(),
-            key=lambda x: x["score"],
-            reverse=True
-        )
+        sorted_docs = sorted(doc_scores.values(), key=lambda x: x["score"], reverse=True)
 
         # Return top-k documents
         return [item["doc"] for item in sorted_docs[:k]]

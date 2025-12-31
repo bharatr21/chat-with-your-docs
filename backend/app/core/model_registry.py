@@ -1,7 +1,7 @@
 """
 Dynamic model registry based on available API keys
 """
-from typing import List, Optional
+
 from app.config import settings
 from app.models.schemas import ModelInfo
 from app.models.user_keys import UserAPIKeys
@@ -17,30 +17,30 @@ class ModelRegistry:
             "provider": "HuggingFace",
             "env_key": "HF_API_KEY",
             "description": "Mixtral 8x7B Instruct - Fast and efficient open-source model",
-            "is_default": True
+            "is_default": True,
         },
         "gpt-5-mini": {
             "name": "GPT-5 Mini",
             "provider": "OpenAI",
             "env_key": "OPENAI_API_KEY",
-            "description": "OpenAI's latest compact model with strong reasoning"
+            "description": "OpenAI's latest compact model with strong reasoning",
         },
         "claude-haiku-4-5": {
             "name": "Claude Haiku 4.5",
             "provider": "Anthropic",
             "env_key": "ANTHROPIC_API_KEY",
-            "description": "Anthropic's fast and efficient Claude model"
+            "description": "Anthropic's fast and efficient Claude model",
         },
         "gemini-3-flash-preview": {
             "name": "Gemini 3 Flash",
             "provider": "Google",
             "env_key": "GEMINI_API_KEY",
-            "description": "Google's latest multimodal model with 1M+ context"
-        }
+            "description": "Google's latest multimodal model with 1M+ context",
+        },
     }
 
     @classmethod
-    def _get_api_key(cls, env_key: str, user_keys: Optional[UserAPIKeys] = None) -> Optional[str]:
+    def _get_api_key(cls, env_key: str, user_keys: UserAPIKeys | None = None) -> str | None:
         """
         Get API key with priority: user-provided > server settings
 
@@ -69,7 +69,7 @@ class ModelRegistry:
             return getattr(settings, env_key, None)
 
     @classmethod
-    def get_available_models(cls, user_keys: Optional[UserAPIKeys] = None) -> List[ModelInfo]:
+    def get_available_models(cls, user_keys: UserAPIKeys | None = None) -> list[ModelInfo]:
         """
         Get list of available models based on API keys
 
@@ -88,19 +88,21 @@ class ModelRegistry:
             api_key = cls._get_api_key(env_key, user_keys)
             available = bool(api_key)
 
-            models.append(ModelInfo(
-                id=model_id,
-                name=config["name"],
-                provider=config["provider"],
-                available=available,
-                description=config.get("description"),
-                is_default=config.get("is_default", False)
-            ))
+            models.append(
+                ModelInfo(
+                    id=model_id,
+                    name=config["name"],
+                    provider=config["provider"],
+                    available=available,
+                    description=config.get("description"),
+                    is_default=config.get("is_default", False),
+                )
+            )
 
         return models
 
     @classmethod
-    def is_model_available(cls, model_id: str, user_keys: Optional[UserAPIKeys] = None) -> bool:
+    def is_model_available(cls, model_id: str, user_keys: UserAPIKeys | None = None) -> bool:
         """
         Check if a specific model is available
 
@@ -121,7 +123,7 @@ class ModelRegistry:
         return bool(api_key)
 
     @classmethod
-    def get_default_model(cls, user_keys: Optional[UserAPIKeys] = None) -> Optional[str]:
+    def get_default_model(cls, user_keys: UserAPIKeys | None = None) -> str | None:
         """
         Get the first available model as default
 
@@ -136,21 +138,21 @@ class ModelRegistry:
             "mistralai/Mixtral-8x7B-Instruct-v0.1",
             "gpt-5-mini",
             "claude-haiku-4-5",
-            "gemini-3-flash-preview"
+            "gemini-3-flash-preview",
         ]:
             if cls.is_model_available(model_id, user_keys):
                 return model_id
         return None
 
     @classmethod
-    def get_provider(cls, model_id: str) -> Optional[str]:
+    def get_provider(cls, model_id: str) -> str | None:
         """Get provider name for a model"""
         if model_id in cls.MODEL_DEFINITIONS:
             return cls.MODEL_DEFINITIONS[model_id]["provider"]
         return None
 
     @classmethod
-    def get_env_key(cls, model_id: str) -> Optional[str]:
+    def get_env_key(cls, model_id: str) -> str | None:
         """Get environment variable key for a model"""
         if model_id in cls.MODEL_DEFINITIONS:
             return cls.MODEL_DEFINITIONS[model_id]["env_key"]

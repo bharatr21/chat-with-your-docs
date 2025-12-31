@@ -1,8 +1,9 @@
 """
 Document processing services
 """
-from .processor import DocumentProcessor
+
 from .metadata import MetadataManager, metadata_manager
+from .processor import DocumentProcessor
 
 __all__ = [
     "DocumentProcessor",
