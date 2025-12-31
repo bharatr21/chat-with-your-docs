@@ -42,15 +42,19 @@ class TestLLMProvider:
 
     @patch('app.services.llm.provider.ModelRegistry.is_model_available')
     @patch('app.services.llm.provider.ModelRegistry.get_provider')
+    @patch('app.services.llm.provider.ModelRegistry.get_env_key')
+    @patch('app.services.llm.provider.ModelRegistry._get_api_key')
     @patch('app.services.llm.provider.ChatAnthropic')
-    def test_create_anthropic_llm(self, mock_anthropic, mock_get_provider, mock_is_available, monkeypatch):
+    def test_create_anthropic_llm(self, mock_anthropic, mock_get_api_key, mock_get_env_key, mock_get_provider, mock_is_available, monkeypatch):
         """Test creating Anthropic LLM"""
         monkeypatch.setenv("ANTHROPIC_API_KEY", "test_key")
         mock_is_available.return_value = True
         mock_get_provider.return_value = "Anthropic"
-        
-        llm = LLMProvider.create_llm("claude-4-5-haiku")
-        
+        mock_get_env_key.return_value = "ANTHROPIC_API_KEY"
+        mock_get_api_key.return_value = "test_key"
+
+        llm = LLMProvider.create_llm("claude-haiku-4-5")
+
         mock_anthropic.assert_called_once()
 
     @patch('app.services.llm.provider.ModelRegistry.is_model_available')
@@ -68,27 +72,37 @@ class TestLLMProvider:
 
     @patch('app.services.llm.provider.ModelRegistry.is_model_available')
     @patch('app.services.llm.provider.ModelRegistry.get_provider')
+    @patch('app.services.llm.provider.ModelRegistry.get_env_key')
+    @patch('app.services.llm.provider.ModelRegistry._get_api_key')
+    @patch('app.services.llm.provider.ChatHuggingFace')
     @patch('app.services.llm.provider.HuggingFaceEndpoint')
-    def test_create_huggingface_llm(self, mock_hf, mock_get_provider, mock_is_available, monkeypatch):
+    def test_create_huggingface_llm(self, mock_hf, mock_chat_hf, mock_get_api_key, mock_get_env_key, mock_get_provider, mock_is_available, monkeypatch):
         """Test creating HuggingFace LLM"""
         monkeypatch.setenv("HF_API_KEY", "test_key")
         mock_is_available.return_value = True
         mock_get_provider.return_value = "HuggingFace"
-        
+        mock_get_env_key.return_value = "HF_API_KEY"
+        mock_get_api_key.return_value = "test_key"
+
         llm = LLMProvider.create_llm("mistralai/Mixtral-8x7B-Instruct-v0.1")
-        
+
         mock_hf.assert_called_once()
+        mock_chat_hf.assert_called_once()
 
     @patch('app.services.llm.provider.ModelRegistry.is_model_available')
     @patch('app.services.llm.provider.ModelRegistry.get_provider')
-    def test_create_llm_unknown_provider(self, mock_get_provider, mock_is_available):
+    @patch('app.services.llm.provider.ModelRegistry.get_env_key')
+    @patch('app.services.llm.provider.ModelRegistry._get_api_key')
+    def test_create_llm_unknown_provider(self, mock_get_api_key, mock_get_env_key, mock_get_provider, mock_is_available):
         """Test creating LLM with unknown provider raises error"""
         mock_is_available.return_value = True
         mock_get_provider.return_value = "UnknownProvider"
-        
+        mock_get_env_key.return_value = "UNKNOWN_API_KEY"
+        mock_get_api_key.return_value = "test_key"
+
         with pytest.raises(ValueError) as exc:
             LLMProvider.create_llm("unknown-model")
-        
+
         assert "Unknown provider" in str(exc.value)
 
     def test_format_messages_user(self):
@@ -157,35 +171,35 @@ class TestLLMProvider:
         class MockChunk:
             def __init__(self, content):
                 self.content = content
-        
-        async def mock_stream():
+
+        async def mock_stream(messages):
             yield MockChunk("Hello")
             yield MockChunk(" ")
             yield MockChunk("World")
-        
+
         mock_llm = Mock()
         mock_llm.astream = mock_stream
-        
+
         result = []
         async for chunk in LLMProvider.stream_llm_response(mock_llm, []):
             result.append(chunk)
-        
+
         assert result == ["Hello", " ", "World"]
 
     @pytest.mark.asyncio
     async def test_stream_llm_response_without_content(self):
         """Test streaming LLM response without content attribute"""
-        async def mock_stream():
+        async def mock_stream(messages):
             yield "Chunk1"
             yield "Chunk2"
-        
+
         mock_llm = Mock()
         mock_llm.astream = mock_stream
-        
+
         result = []
         async for chunk in LLMProvider.stream_llm_response(mock_llm, []):
             result.append(chunk)
-        
+
         assert result == ["Chunk1", "Chunk2"]
 
     def test_create_llm_default_parameters(self):

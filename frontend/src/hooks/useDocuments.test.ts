@@ -76,7 +76,10 @@ describe('useDocuments', () => {
     });
 
     await expect(result.current.uploadDocument(mockFile)).rejects.toThrow('Upload failed');
-    expect(result.current.error).toBe('Upload failed');
+
+    await waitFor(() => {
+      expect(result.current.error).toBe('Upload failed');
+    });
   });
 
   it('should delete document', async () => {
@@ -110,7 +113,10 @@ describe('useDocuments', () => {
     });
 
     await expect(result.current.deleteDocument('1')).rejects.toThrow('Delete failed');
-    expect(result.current.error).toBe('Delete failed');
+
+    await waitFor(() => {
+      expect(result.current.error).toBe('Delete failed');
+    });
   });
 
   it('should refresh documents', async () => {

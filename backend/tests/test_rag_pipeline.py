@@ -27,11 +27,11 @@ def sample_documents():
     return [
         Document(
             page_content="Python is a programming language",
-            metadata={"filename": "python.txt", "page_count": 1}
+            metadata={"filename": "python.txt", "chunk_index": 0, "chunk_total": 5}
         ),
         Document(
             page_content="It has many libraries",
-            metadata={"filename": "python.txt", "page_count": 2}
+            metadata={"filename": "python.txt", "chunk_index": 1, "chunk_total": 5}
         ),
     ]
 
@@ -126,41 +126,48 @@ class TestRAGPipeline:
             assert "python.txt" in context
 
     @pytest.mark.asyncio
-    async def test_retrieve_context_with_page_numbers(self, mock_llm_provider):
-        """Test context includes page numbers when available"""
+    async def test_retrieve_context_with_chunk_info(self, mock_llm_provider):
+        """Test context includes chunk information when available"""
         docs = [
             Document(
                 page_content="Content",
-                metadata={"filename": "doc.pdf", "page_count": 5}
+                metadata={"filename": "doc.pdf", "chunk_index": 4, "chunk_total": 10}
             )
         ]
-        
+
         with patch('app.services.rag.pipeline.HybridRetriever') as mock_retriever_class:
             mock_retriever = Mock()
             mock_retriever.retrieve.return_value = docs
             mock_retriever_class.return_value = mock_retriever
-            
+
             pipeline = RAGPipeline(model_id="test-model")
             _, context = await pipeline.retrieve_context("test")
-            
-            assert "Page 5" in context
+
+            assert "Chunk 5/10" in context
 
     @pytest.mark.asyncio
     async def test_generate_response_streaming(self, mock_llm_provider):
         """Test streaming response generation"""
         mock_llm = Mock()
-        
+
         async def mock_stream(*args, **kwargs):
             yield "Hello"
             yield " "
             yield "World"
-        
+
         mock_llm.astream = mock_stream
         mock_llm_provider.create_llm.return_value = mock_llm
-        
+        mock_llm_provider.format_messages.return_value = []
+
+        async def stream_response(llm, messages):
+            async for chunk in mock_stream():
+                yield chunk
+
+        mock_llm_provider.stream_llm_response = stream_response
+
         with patch('app.services.rag.pipeline.HybridRetriever'):
             pipeline = RAGPipeline(model_id="test-model")
-            
+
             result = []
             async for chunk in pipeline.generate_response(
                 query="test",
@@ -168,7 +175,7 @@ class TestRAGPipeline:
                 stream=True
             ):
                 result.append(chunk)
-            
+
             assert result == ["Hello", " ", "World"]
 
     @pytest.mark.asyncio
@@ -203,27 +210,33 @@ class TestRAGPipeline:
     async def test_run_streaming(self, mock_llm_provider):
         """Test full pipeline with streaming"""
         mock_llm = Mock()
-        
+
         async def mock_stream(*args, **kwargs):
             yield "Response"
-        
+
         mock_llm.astream = mock_stream
         mock_llm_provider.create_llm.return_value = mock_llm
         mock_llm_provider.format_messages.return_value = []
-        
+
+        async def stream_response(llm, messages):
+            async for chunk in mock_stream():
+                yield chunk
+
+        mock_llm_provider.stream_llm_response = stream_response
+
         with patch('app.services.rag.pipeline.HybridRetriever') as mock_retriever_class:
             mock_retriever = Mock()
             mock_retriever.retrieve.return_value = [
                 Document(page_content="Context", metadata={"filename": "test.txt"})
             ]
             mock_retriever_class.return_value = mock_retriever
-            
+
             pipeline = RAGPipeline(model_id="test-model")
-            
+
             result = []
             async for chunk in pipeline.run(query="test", stream=True):
                 result.append(chunk)
-            
+
             assert "Response" in result
 
     @pytest.mark.asyncio
@@ -262,53 +275,31 @@ class TestRAGPipeline:
     async def test_run_non_streaming(self, mock_llm_provider):
         """Test pipeline without streaming"""
         mock_llm = Mock()
-        
-        async def mock_stream(*args, **kwargs):
-            yield "Complete"
-            yield " response"
-        
-        mock_llm.astream = mock_stream
+
+        async def mock_invoke(*args, **kwargs):
+            response = Mock()
+            response.content = "Complete response"
+            return response
+
+        mock_llm.ainvoke = mock_invoke
         mock_llm_provider.create_llm.return_value = mock_llm
         mock_llm_provider.format_messages.return_value = []
-        
+
         with patch('app.services.rag.pipeline.HybridRetriever') as mock_retriever_class:
             mock_retriever = Mock()
             mock_retriever.retrieve.return_value = []
             mock_retriever_class.return_value = mock_retriever
-            
+
             pipeline = RAGPipeline(model_id="test-model")
-            
+
             result = []
             async for chunk in pipeline.run(query="test", stream=False):
                 result.append(chunk)
-            
+
             # Should still yield chunks even in non-streaming mode
             assert len(result) > 0
 
-    @pytest.mark.asyncio
-    async def test_run_with_custom_top_k(self, mock_llm_provider):
-        """Test pipeline with custom retrieval top_k"""
-        mock_llm = Mock()
-        async def mock_stream(*args, **kwargs):
-            yield "Response"
-        mock_llm.astream = mock_stream
-        mock_llm_provider.create_llm.return_value = mock_llm
-        mock_llm_provider.format_messages.return_value = []
-        
-        with patch('app.services.rag.pipeline.HybridRetriever') as mock_retriever_class:
-            mock_retriever = Mock()
-            mock_retriever.retrieve.return_value = []
-            mock_retriever_class.return_value = mock_retriever
-            
-            pipeline = RAGPipeline(model_id="test-model")
-            
-            async for _ in pipeline.run(query="test", top_k=10):
-                pass
-            
-            # Verify retrieve was called with correct top_k
-            mock_retriever.retrieve.assert_called_once()
-            call_kwargs = mock_retriever.retrieve.call_args[1]
-            assert call_kwargs.get('top_k') == 10
+    # Removed test_run_with_custom_top_k - top_k parameter no longer supported in run()
 
     def test_rag_prompt_structure(self):
         """Test RAG prompt template structure"""

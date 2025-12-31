@@ -152,18 +152,20 @@ describe('DocumentUpload', () => {
     Object.defineProperty(input, 'files', {
       value: [file1],
       writable: false,
+      configurable: true,
     });
     fireEvent.change(input);
-    
+
     await waitFor(() => {
       expect(screen.getByText(/First error/i)).toBeInTheDocument();
     });
-    
+
     // Second upload - succeeds
     const file2 = new File(['content'], 'test2.pdf', { type: 'application/pdf' });
     Object.defineProperty(input, 'files', {
       value: [file2],
       writable: false,
+      configurable: true,
     });
     fireEvent.change(input);
     

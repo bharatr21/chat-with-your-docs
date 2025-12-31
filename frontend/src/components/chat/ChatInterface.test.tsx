@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ChatInterface } from './ChatInterface';
+import { useChat } from '@ai-sdk/react';
 
 // Mock useChat hook
 vi.mock('@ai-sdk/react', () => ({
@@ -28,10 +29,8 @@ describe('ChatInterface', () => {
   });
 
   it('should pass correct props to useChat', () => {
-    const { useChat } = require('@ai-sdk/react');
-    
     render(<ChatInterface {...defaultProps} />);
-    
+
     expect(useChat).toHaveBeenCalledWith(
       expect.objectContaining({
         api: 'http://localhost:8000/api/chat',

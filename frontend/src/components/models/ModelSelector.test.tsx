@@ -43,8 +43,8 @@ describe('ModelSelector', () => {
   it('opens dropdown on click', () => {
     render(<ModelSelector {...defaultProps} />);
     fireEvent.click(screen.getByRole('button'));
-    expect(screen.getByText('HUGGINGFACE')).toBeInTheDocument();
-    expect(screen.getByText('OPENAI')).toBeInTheDocument();
+    expect(screen.getByText(/huggingface/i)).toBeInTheDocument();
+    expect(screen.getByText(/openai/i)).toBeInTheDocument();
   });
 
   it('calls onModelChange when model selected', () => {
@@ -62,7 +62,9 @@ describe('ModelSelector', () => {
     fireEvent.click(screen.getByRole('button'));
 
     // The selected model should have a check icon (we can check by class or role)
-    const mixtralOption = screen.getByText('Mixtral 8x7B').closest('button');
-    expect(mixtralOption?.querySelector('svg')).toBeInTheDocument();
+    // Use getAllByText since the model appears both in the dropdown and in the button
+    const mixtralOptions = screen.getAllByText('Mixtral 8x7B');
+    const mixtralOption = mixtralOptions.find(el => el.closest('button')?.querySelector('svg'));
+    expect(mixtralOption).toBeDefined();
   });
 });
