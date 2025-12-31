@@ -58,7 +58,7 @@ Tests critical frontend components:
 
 **Not included:** Individual unit tests (MessageInput, MessageList, DocumentSelector, useDocuments, useModels, utils) - these are tested via integration tests or covered by E2E tests.
 
-### 3. E2E Tests (~10 scenarios)
+### 3. E2E Tests (~10 scenarios) - **Optional/Advisory**
 Full integration tests with Playwright covering:
 - Application loading with models
 - Document upload and display
@@ -69,6 +69,14 @@ Full integration tests with Playwright covering:
 - Model switching
 
 These tests run the actual application and verify end-to-end functionality.
+
+**Note:** E2E tests are marked as `continue-on-error: true` in CI because they:
+- Depend on full backend startup (embedding model downloads, etc.)
+- May fail due to missing/mocked environment variables
+- Are more environment-sensitive than unit tests
+- Failures won't block PR merges
+
+**Recommendation:** Run E2E tests locally before deploying to catch integration issues.
 
 ### 4. Code Quality (Lint)
 - **Backend**: Ruff linting
