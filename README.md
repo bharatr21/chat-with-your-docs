@@ -31,9 +31,10 @@ A modern RAG (Retrieval-Augmented Generation) chat application that lets you cha
 
 ### Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - Node.js 18+
 - npm or yarn
+- [uv](https://docs.astral.sh/uv/) (recommended) or pip
 
 ### 1. Clone the repository
 
@@ -51,12 +52,22 @@ cp .env.example .env
 
 ### 3. Start the backend
 
+**Option A: Using uv (recommended)**
+
+```bash
+cd backend
+uv sync  # Install dependencies from pyproject.toml
+uv run fastapi dev app/main.py
+```
+
+**Option B: Using pip**
+
 ```bash
 cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+pip install -e .  # Install from pyproject.toml
+python -m uvicorn app.main:app --reload
 ```
 
 ### 4. Start the frontend

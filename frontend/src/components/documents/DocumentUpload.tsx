@@ -63,7 +63,16 @@ export function DocumentUpload({ onUpload, isUploading }: DocumentUploadProps) {
   }, []);
 
   const handleClick = () => {
-    fileInputRef.current?.click();
+    if (!isUploading) {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,7 +87,11 @@ export function DocumentUpload({ onUpload, isUploading }: DocumentUploadProps) {
   return (
     <div className="space-y-2">
       <div
+        role="button"
+        tabIndex={0}
+        aria-disabled={isUploading}
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}

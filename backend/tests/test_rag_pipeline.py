@@ -63,7 +63,7 @@ class TestRAGPipeline:
 
     def test_init_creates_llm(self, mock_llm_provider, mock_retriever):
         """Test that initialization creates LLM instance"""
-        pipeline = RAGPipeline(model_id="test-model")
+        RAGPipeline(model_id="test-model")
 
         mock_llm_provider.create_llm.assert_called_once_with(
             model_id="test-model", temperature=0.7, max_tokens=1024, streaming=True, user_keys=None
@@ -72,7 +72,7 @@ class TestRAGPipeline:
     def test_init_creates_retriever(self, mock_llm_provider, mock_retriever):
         """Test that initialization creates retriever"""
         doc_ids = ["doc1", "doc2"]
-        pipeline = RAGPipeline(model_id="test-model", document_ids=doc_ids)
+        RAGPipeline(model_id="test-model", document_ids=doc_ids)
 
         mock_retriever.assert_called_once_with(document_ids=doc_ids)
 

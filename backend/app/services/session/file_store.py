@@ -18,10 +18,50 @@ class SessionStore:
     def __init__(self, session_dir: str | None = None):
         self.session_dir = session_dir or settings.SESSION_DIR
         os.makedirs(self.session_dir, exist_ok=True)
+        # Normalize and make absolute for security checks
+        self.session_dir = os.path.abspath(self.session_dir)
+
+    def _validate_session_id(self, session_id: str) -> None:
+        """
+        Validate session_id to prevent path traversal attacks.
+
+        Raises ValueError if session_id is invalid or contains path traversal characters.
+        """
+        if not session_id:
+            raise ValueError("Session ID cannot be empty")
+
+        # Check for path traversal characters
+        if "/" in session_id or "\\" in session_id or ".." in session_id:
+            raise ValueError(f"Invalid session ID: {session_id} contains path traversal characters")
+
+        # Validate UUID format (sessions are created with UUIDs)
+        try:
+            uuid.UUID(session_id)
+        except ValueError as e:
+            raise ValueError(f"Invalid session ID format: {session_id} is not a valid UUID") from e
 
     def _get_session_path(self, session_id: str) -> str:
-        """Get file path for session"""
-        return os.path.join(self.session_dir, f"{session_id}.json")
+        """
+        Get file path for session with path traversal protection.
+
+        Raises ValueError if session_id is invalid or would result in path traversal.
+        """
+        # Validate session_id format
+        self._validate_session_id(session_id)
+
+        # Construct path
+        session_path = os.path.join(self.session_dir, f"{session_id}.json")
+
+        # Normalize path to resolve any remaining issues
+        session_path = os.path.normpath(session_path)
+        session_path = os.path.abspath(session_path)
+
+        # Ensure the resolved path is within the session directory
+        # This prevents path traversal even if validation somehow fails
+        if not os.path.commonpath([self.session_dir, session_path]) == self.session_dir:
+            raise ValueError(f"Path traversal detected: {session_id}")
+
+        return session_path
 
     def create_session(
         self, model_id: str, document_ids: list[str], name: str | None = None

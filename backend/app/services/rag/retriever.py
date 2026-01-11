@@ -2,6 +2,7 @@
 Hybrid retriever using HNSW (semantic) + BM25 (lexical) with RRF fusion
 """
 
+import hashlib
 from typing import Any
 
 from langchain_core.documents import Document
@@ -118,6 +119,26 @@ class HybridRetriever:
         except Exception:
             return []
 
+    @staticmethod
+    def _get_doc_key(doc: Document) -> str:
+        """
+        Generate a unique key for a document using metadata and content hash.
+
+        Uses filename + chunk_index if available, otherwise falls back to content hash.
+        This ensures documents with identical headers but different content are not merged.
+        """
+        # Try to use metadata for semantic identification
+        filename = doc.metadata.get("filename", "")
+        chunk_index = doc.metadata.get("chunk_index", "")
+
+        if filename and chunk_index is not None:
+            # Use filename and chunk index as primary key
+            return f"{filename}::{chunk_index}"
+
+        # Fall back to content hash for documents without proper metadata
+        content_hash = hashlib.sha256(doc.page_content.encode()).hexdigest()[:16]
+        return f"hash::{content_hash}"
+
     def _reciprocal_rank_fusion(
         self, vector_results: list[tuple], bm25_results: list[tuple], k: int, weight: float = 60.0
     ) -> list[Document]:
@@ -130,14 +151,14 @@ class HybridRetriever:
 
         # Process vector search results
         for rank, (doc, _score) in enumerate(vector_results):
-            doc_key = doc.page_content[:100]  # Use content prefix as key
+            doc_key = self._get_doc_key(doc)
             if doc_key not in doc_scores:
                 doc_scores[doc_key] = {"doc": doc, "score": 0.0}
             doc_scores[doc_key]["score"] += 1.0 / (rank + weight)
 
         # Process BM25 results
         for rank, (doc, _score) in enumerate(bm25_results):
-            doc_key = doc.page_content[:100]
+            doc_key = self._get_doc_key(doc)
             if doc_key not in doc_scores:
                 doc_scores[doc_key] = {"doc": doc, "score": 0.0}
             doc_scores[doc_key]["score"] += 1.0 / (rank + weight)

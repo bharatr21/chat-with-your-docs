@@ -35,10 +35,15 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
             )
 
     # Get or create session
-    if request.session_id and session_store.session_exists(request.session_id):
-        session = session_store.get_session(request.session_id)
-    else:
-        session = None
+    session = None
+    if request.session_id:
+        try:
+            if session_store.session_exists(request.session_id):
+                session = session_store.get_session(request.session_id)
+        except ValueError:
+            # Invalid session ID format - treat as if session doesn't exist
+            # This allows the chat to proceed without a session
+            pass
 
     # Get the last user message
     if not request.messages:
@@ -86,12 +91,16 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
                     yield formatted
 
                 # Save messages to session if session exists
-                if request.session_id:
-                    # Add user message
-                    session_store.add_message(request.session_id, user_message)
-                    # Add assistant response
-                    assistant_msg = Message(role="assistant", content="".join(full_response))
-                    session_store.add_message(request.session_id, assistant_msg)
+                if session is not None:
+                    try:
+                        # Add user message
+                        session_store.add_message(request.session_id, user_message)
+                        # Add assistant response
+                        assistant_msg = Message(role="assistant", content="".join(full_response))
+                        session_store.add_message(request.session_id, assistant_msg)
+                    except (ValueError, FileNotFoundError):
+                        # Session doesn't exist or invalid - skip saving
+                        pass
 
             return StreamingResponse(
                 generate(),
@@ -113,10 +122,14 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
             response_text = "".join(response_chunks)
 
             # Save to session
-            if request.session_id:
-                session_store.add_message(request.session_id, user_message)
-                assistant_msg = Message(role="assistant", content=response_text)
-                session_store.add_message(request.session_id, assistant_msg)
+            if session is not None:
+                try:
+                    session_store.add_message(request.session_id, user_message)
+                    assistant_msg = Message(role="assistant", content=response_text)
+                    session_store.add_message(request.session_id, assistant_msg)
+                except (ValueError, FileNotFoundError):
+                    # Session doesn't exist or invalid - skip saving
+                    pass
 
             return {
                 "message": response_text,

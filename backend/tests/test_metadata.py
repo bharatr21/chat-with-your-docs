@@ -28,7 +28,7 @@ def metadata_manager(temp_metadata_dir):
 def test_init_creates_directory(temp_metadata_dir):
     """Test that initialization creates metadata directory"""
     subdir = os.path.join(temp_metadata_dir, "metadata")
-    manager = MetadataManager(metadata_dir=subdir)
+    MetadataManager(metadata_dir=subdir)
 
     assert os.path.exists(subdir)
     assert os.path.isdir(subdir)

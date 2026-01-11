@@ -79,3 +79,20 @@ def test_delete_document(client, sample_text_file):
     # Verify it's gone
     get_response = client.get(f"/api/documents/{doc_id}")
     assert get_response.status_code == 404
+
+
+def test_upload_document_without_filename(client, tmp_path):
+    """Test uploading a file without a filename in Content-Disposition"""
+    # Create a test file
+    file_path = tmp_path / "test.txt"
+    file_path.write_text("Test content")
+
+    # Upload with None as filename (simulates missing filename in Content-Disposition)
+    with open(file_path, "rb") as f:
+        response = client.post(
+            "/api/documents/upload", files={"file": (None, f, "text/plain")}
+        )
+
+    # FastAPI may return 422 (validation error) or 400 (our custom error)
+    # Both are acceptable for invalid input
+    assert response.status_code in [400, 422]

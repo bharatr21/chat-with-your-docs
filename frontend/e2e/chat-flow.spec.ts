@@ -22,7 +22,7 @@ test.describe('Chat with Documents - Full Integration', () => {
     await expect(page.locator('h1')).toContainText('Chat with Your Docs');
 
     // Verify model selector is present and has loaded models
-    const modelSelector = page.locator('text=Model').locator('..');
+    const modelSelector = page.getByTestId('model-selector-section');
     await expect(modelSelector).toBeVisible();
 
     // Click to open model dropdown
@@ -127,7 +127,7 @@ test.describe('Chat with Documents - Full Integration', () => {
       await chatInput.fill('What is machine learning?');
 
       // Click send button
-      await page.getByRole('button', { name: '' }).click(); // Send icon button
+      await page.getByRole('button', { name: 'Send message' }).click();
 
       // Step 4: Verify user message appears
       await expect(page.getByText('What is machine learning?')).toBeVisible();
@@ -196,9 +196,8 @@ test.describe('Chat with Documents - Full Integration', () => {
       // Wait for document to appear
       await expect(page.getByText('delete-test.txt')).toBeVisible({ timeout: 30000 });
 
-      // Click the delete button (trash icon)
-      const documentRow = page.getByText('delete-test.txt').locator('..');
-      await documentRow.locator('button').last().click();
+      // Click the delete button
+      await page.getByRole('button', { name: 'Delete delete-test.txt' }).click();
 
       // Document should be removed
       await expect(page.getByText('delete-test.txt')).not.toBeVisible();
@@ -217,9 +216,6 @@ test.describe('Chat with Documents - Full Integration', () => {
   test('should toggle sidebar', async ({ page }) => {
     // Sidebar should be visible initially
     await expect(page.getByText('Upload Documents')).toBeVisible();
-
-    // Find and click the toggle button (chevron)
-    const toggleButton = page.locator('button').filter({ has: page.locator('svg') }).first();
 
     // Look for the sidebar toggle specifically (positioned on the left edge)
     const sidebarToggle = page.locator('button:has(svg[class*="ChevronLeft"], svg[class*="lucide-chevron"])').first();

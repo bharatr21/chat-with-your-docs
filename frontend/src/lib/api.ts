@@ -1,4 +1,5 @@
 import { getAPIKeyHeaders } from './apiKeys';
+import type { Document } from '@/types/document';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -89,16 +90,6 @@ class ApiClient {
 }
 
 // Types
-interface Document {
-  id: string;
-  title: string;
-  file_name: string;
-  file_type: string;
-  file_size?: number;
-  chunk_count?: number;
-  upload_date: string;
-}
-
 interface Model {
   id: string;
   name: string;

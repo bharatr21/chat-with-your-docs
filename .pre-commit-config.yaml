@@ -24,7 +24,7 @@ repos:
 
   # Backend: Python linting and formatting with Ruff
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+    rev: v0.14.10
     hooks:
       # Run the linter
       - id: ruff
@@ -70,7 +70,7 @@ repos:
 
 # Configuration
 default_language_version:
-  python: python3.13
+  python: python3.11
 
 # Files to exclude from all hooks
 exclude: |

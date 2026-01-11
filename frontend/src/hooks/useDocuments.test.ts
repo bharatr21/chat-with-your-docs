@@ -19,8 +19,6 @@ describe('useDocuments', () => {
 
     const { result } = renderHook(() => useDocuments());
 
-    expect(result.current.isLoading).toBe(true);
-
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });

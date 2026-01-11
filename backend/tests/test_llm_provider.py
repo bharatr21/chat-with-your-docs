@@ -31,7 +31,7 @@ class TestLLMProvider:
         mock_is_available.return_value = True
         mock_get_provider.return_value = "OpenAI"
 
-        llm = LLMProvider.create_llm("gpt-5-mini", temperature=0.5, max_tokens=500, streaming=True)
+        LLMProvider.create_llm("gpt-5-mini", temperature=0.5, max_tokens=500, streaming=True)
 
         mock_openai.assert_called_once()
         call_kwargs = mock_openai.call_args[1]
@@ -61,7 +61,7 @@ class TestLLMProvider:
         mock_get_env_key.return_value = "ANTHROPIC_API_KEY"
         mock_get_api_key.return_value = "test_key"
 
-        llm = LLMProvider.create_llm("claude-haiku-4-5")
+        LLMProvider.create_llm("claude-haiku-4-5")
 
         mock_anthropic.assert_called_once()
 
@@ -76,7 +76,7 @@ class TestLLMProvider:
         mock_is_available.return_value = True
         mock_get_provider.return_value = "Google"
 
-        llm = LLMProvider.create_llm("gemini-3-flash-preview")
+        LLMProvider.create_llm("gemini-3-flash-preview")
 
         mock_google.assert_called_once()
 
@@ -103,7 +103,7 @@ class TestLLMProvider:
         mock_get_env_key.return_value = "HF_API_KEY"
         mock_get_api_key.return_value = "test_key"
 
-        llm = LLMProvider.create_llm("mistralai/Mixtral-8x7B-Instruct-v0.1")
+        LLMProvider.create_llm("mistralai/Mixtral-8x7B-Instruct-v0.1")
 
         mock_hf.assert_called_once()
         mock_chat_hf.assert_called_once()

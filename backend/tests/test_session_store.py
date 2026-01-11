@@ -64,8 +64,10 @@ def test_get_session(session_store):
 
 def test_get_session_not_found(session_store):
     """Test getting non-existent session raises error"""
+    # Use a valid UUID format for non-existent session
+    nonexistent_id = "00000000-0000-0000-0000-000000000000"
     with pytest.raises(FileNotFoundError):
-        session_store.get_session("nonexistent-id")
+        session_store.get_session(nonexistent_id)
 
 
 def test_update_session_messages(session_store):
@@ -145,8 +147,10 @@ def test_delete_session(session_store, temp_session_dir):
 
 def test_delete_session_nonexistent(session_store):
     """Test deleting non-existent session doesn't raise error"""
+    # Use a valid UUID format for non-existent session
+    nonexistent_id = "00000000-0000-0000-0000-000000000000"
     # Should not raise
-    session_store.delete_session("nonexistent-id")
+    session_store.delete_session(nonexistent_id)
 
 
 def test_list_sessions_empty(session_store):
@@ -244,7 +248,9 @@ def test_session_exists_true(session_store):
 
 def test_session_exists_false(session_store):
     """Test session_exists returns False for non-existent session"""
-    assert session_store.session_exists("nonexistent-id") is False
+    # Use a valid UUID format for non-existent session
+    nonexistent_id = "00000000-0000-0000-0000-000000000000"
+    assert session_store.session_exists(nonexistent_id) is False
 
 
 def test_session_with_empty_document_ids(session_store):
@@ -287,3 +293,49 @@ def test_list_sessions_ignores_corrupted_files(session_store, temp_session_dir):
     sessions = session_store.list_sessions()
     assert len(sessions) == 1
     assert sessions[0].id == session.id
+
+
+def test_session_id_path_traversal_protection(session_store):
+    """Test that path traversal attacks are prevented"""
+    # Test various path traversal attempts
+    malicious_ids = [
+        "../../etc/passwd",
+        "..\\..\\windows\\system32",
+        "../sessions/other",
+        "/etc/passwd",
+        "session/../../../etc/passwd",
+    ]
+
+    for malicious_id in malicious_ids:
+        with pytest.raises(ValueError, match="path traversal"):
+            session_store.get_session(malicious_id)
+        with pytest.raises(ValueError, match="path traversal"):
+            session_store.delete_session(malicious_id)
+        with pytest.raises(ValueError, match="path traversal"):
+            session_store.session_exists(malicious_id)
+
+
+def test_session_id_invalid_format(session_store):
+    """Test that non-UUID session IDs are rejected"""
+    # Test empty string separately (different error message)
+    with pytest.raises(ValueError, match="cannot be empty"):
+        session_store.get_session("")
+    with pytest.raises(ValueError, match="cannot be empty"):
+        session_store.delete_session("")
+    with pytest.raises(ValueError, match="cannot be empty"):
+        session_store.session_exists("")
+
+    # Test other invalid formats
+    invalid_ids = [
+        "not-a-uuid",
+        "123",
+        "session-123",
+    ]
+
+    for invalid_id in invalid_ids:
+        with pytest.raises(ValueError, match="Invalid session ID"):
+            session_store.get_session(invalid_id)
+        with pytest.raises(ValueError, match="Invalid session ID"):
+            session_store.delete_session(invalid_id)
+        with pytest.raises(ValueError, match="Invalid session ID"):
+            session_store.session_exists(invalid_id)

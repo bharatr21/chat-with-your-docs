@@ -97,6 +97,7 @@ export function DocumentSelector({
                   e.stopPropagation();
                   onDelete(doc.id);
                 }}
+                aria-label={`Delete ${doc.title || doc.file_name}`}
                 className="p-1 text-muted-foreground hover:text-destructive rounded transition-colors"
                 disabled={isLoading}
               >

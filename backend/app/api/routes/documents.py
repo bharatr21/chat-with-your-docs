@@ -29,7 +29,13 @@ os.makedirs(UPLOADS_DIR, exist_ok=True)
 @router.post("/upload", response_model=DocumentUploadResponse)
 async def upload_document(file: UploadFile = File(...)):
     """Upload and process a document"""
-    # Validate file
+    # Validate filename exists
+    if file.filename is None:
+        raise HTTPException(
+            status_code=400, detail="No filename provided in upload"
+        )
+
+    # Validate file type
     processor = DocumentProcessor()
 
     if not processor.is_supported(file.filename):

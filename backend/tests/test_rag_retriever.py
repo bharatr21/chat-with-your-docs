@@ -148,7 +148,7 @@ class TestHybridRetriever:
         results = retriever._bm25_search("Python", sample_documents, k=5)
 
         # Documents with "Python" should be ranked higher
-        scores = [score for _, score in results]
+        [score for _, score in results]
         # Scores should be in descending order (or at least not ascending for all)
         assert len(results) > 0
 
