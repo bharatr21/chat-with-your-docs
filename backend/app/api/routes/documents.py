@@ -69,6 +69,9 @@ def sanitize_filename(filename: str) -> str:
     max_length = 200  # Leave room for doc_id prefix
     if len(filename) > max_length:
         name, ext = os.path.splitext(filename)
+        # Validate extension length to prevent negative truncation
+        if len(ext) >= max_length:
+            raise ValueError(f"File extension too long (max {max_length - 1} characters)")
         filename = name[:max_length - len(ext)] + ext
 
     return filename
