@@ -2,6 +2,8 @@
 Chat API endpoints with streaming support
 """
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
@@ -13,6 +15,7 @@ from app.models.user_keys import UserAPIKeys
 from app.services.rag import RAGPipeline
 from app.services.session import session_store
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -98,9 +101,16 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
                         # Add assistant response
                         assistant_msg = Message(role="assistant", content="".join(full_response))
                         session_store.add_message(request.session_id, assistant_msg)
-                    except (ValueError, FileNotFoundError):
+                    except (ValueError, FileNotFoundError) as e:
                         # Session doesn't exist or invalid - skip saving
-                        pass
+                        logger.warning(
+                            "Failed to persist messages to session after streaming",
+                            extra={
+                                "session_id": request.session_id,
+                                "error": str(e),
+                                "error_type": type(e).__name__,
+                            },
+                        )
 
             return StreamingResponse(
                 generate(),
@@ -127,9 +137,16 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
                     session_store.add_message(request.session_id, user_message)
                     assistant_msg = Message(role="assistant", content=response_text)
                     session_store.add_message(request.session_id, assistant_msg)
-                except (ValueError, FileNotFoundError):
+                except (ValueError, FileNotFoundError) as e:
                     # Session doesn't exist or invalid - skip saving
-                    pass
+                    logger.warning(
+                        "Failed to persist messages to session after non-streaming response",
+                        extra={
+                            "session_id": request.session_id,
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                        },
+                    )
 
             return {
                 "message": response_text,

@@ -3,9 +3,12 @@ Document metadata extraction and management
 """
 
 import json
+import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class MetadataManager:
@@ -21,7 +24,7 @@ class MetadataManager:
 
         # Add timestamps
         if "upload_date" not in metadata:
-            metadata["upload_date"] = datetime.utcnow().isoformat()
+            metadata["upload_date"] = datetime.now(timezone.utc).isoformat()
 
         with open(metadata_path, "w") as f:
             json.dump(metadata, f, indent=2, default=str)
@@ -57,7 +60,11 @@ class MetadataManager:
                     metadata = self.load_metadata(doc_id)
                     metadata["id"] = doc_id
                     metadata_list.append(metadata)
-                except Exception:
+                except Exception as e:
+                    logger.warning(
+                        "Failed to load metadata file, skipping",
+                        extra={"doc_id": doc_id, "file_name": filename, "error": str(e)},
+                    )
                     continue
 
         return metadata_list

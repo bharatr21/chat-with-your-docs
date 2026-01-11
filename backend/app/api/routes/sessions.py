@@ -27,13 +27,21 @@ async def create_session(request: SessionCreate):
             detail=f"Invalid model_id: '{request.model_id}'. Model not found in registry.",
         )
 
-    # Validate each document_id exists
-    for doc_id in request.document_ids:
-        if not metadata_manager.exists(doc_id):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid document_id: '{doc_id}'. Document not found.",
+    # Validate all document_ids exist - collect all invalid IDs for better UX
+    invalid_doc_ids = [
+        doc_id for doc_id in request.document_ids if not metadata_manager.exists(doc_id)
+    ]
+
+    if invalid_doc_ids:
+        if len(invalid_doc_ids) == 1:
+            detail = f"Invalid document_id: '{invalid_doc_ids[0]}'. Document not found."
+        else:
+            doc_list = "', '".join(invalid_doc_ids)
+            detail = (
+                f"Invalid document_ids: '{doc_list}'. "
+                f"{len(invalid_doc_ids)} documents not found."
             )
+        raise HTTPException(status_code=400, detail=detail)
 
     # All validations passed, create session
     session = session_store.create_session(

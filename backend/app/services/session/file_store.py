@@ -3,13 +3,16 @@ File-based session storage
 """
 
 import json
+import logging
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from app.config import settings
 from app.models.schemas import Message, SessionInfo
+
+logger = logging.getLogger(__name__)
 
 
 class SessionStore:
@@ -68,7 +71,7 @@ class SessionStore:
     ) -> SessionInfo:
         """Create a new session"""
         session_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         session_data = {
             "id": session_id,
@@ -120,7 +123,7 @@ class SessionStore:
         if name is not None:
             session_data["name"] = name
 
-        session_data["updated_at"] = datetime.utcnow().isoformat()
+        session_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         self._save_session(session_id, session_data)
 
@@ -144,7 +147,11 @@ class SessionStore:
                 try:
                     session = self.get_session(session_id)
                     sessions.append(session)
-                except Exception:
+                except Exception as e:
+                    logger.warning(
+                        "Failed to load session file, skipping",
+                        extra={"session_id": session_id, "file_name": filename, "error": str(e)},
+                    )
                     continue
 
         # Sort by updated_at (most recent first)
@@ -158,7 +165,7 @@ class SessionStore:
 
         message_dict = message.model_dump() if isinstance(message, Message) else message
         session_data["messages"].append(message_dict)
-        session_data["updated_at"] = datetime.utcnow().isoformat()
+        session_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         self._save_session(session_id, session_data)
 
@@ -191,14 +198,20 @@ class SessionStore:
             for msg in session_data.get("messages", [])
         ]
 
-        # Parse dates
+        # Parse dates - ensure timezone-aware
         created_at = session_data.get("created_at")
         if isinstance(created_at, str):
             created_at = datetime.fromisoformat(created_at)
+            # Make timezone-aware if naive (assume UTC for legacy data)
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
 
         updated_at = session_data.get("updated_at")
         if isinstance(updated_at, str):
             updated_at = datetime.fromisoformat(updated_at)
+            # Make timezone-aware if naive (assume UTC for legacy data)
+            if updated_at.tzinfo is None:
+                updated_at = updated_at.replace(tzinfo=timezone.utc)
 
         return SessionInfo(
             id=session_data["id"],

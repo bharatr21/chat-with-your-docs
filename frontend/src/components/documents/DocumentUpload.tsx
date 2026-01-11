@@ -8,8 +8,8 @@ interface DocumentUploadProps {
   isUploading: boolean;
 }
 
-const ACCEPTED_TYPES = ['.pdf', '.docx', '.txt', '.csv'];
-const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+const ACCEPTED_TYPES = ['.pdf', '.docx', '.txt', '.md', '.csv'];
+const MAX_SIZE = 100 * 1024 * 1024; // 50MB
 
 export function DocumentUpload({ onUpload, isUploading }: DocumentUploadProps) {
   const [isDragging, setIsDragging] = useState(false);

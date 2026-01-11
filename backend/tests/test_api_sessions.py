@@ -143,3 +143,22 @@ def test_create_session_with_mixed_document_ids(client):
     assert response.status_code == 400
     assert "Invalid document_id" in response.json()["detail"]
     assert "nonexistent-doc-id" in response.json()["detail"]
+
+
+def test_create_session_with_multiple_invalid_document_ids(client):
+    """Test creating a session with multiple invalid document_ids returns all at once"""
+    response = client.post(
+        "/api/sessions",
+        json={
+            "model_id": "mistralai/Mixtral-8x7B-Instruct-v0.1",
+            "document_ids": ["invalid-id-1", "invalid-id-2", "invalid-id-3"]
+        }
+    )
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    # Should list all invalid IDs
+    assert "Invalid document_ids" in detail  # Plural form
+    assert "invalid-id-1" in detail
+    assert "invalid-id-2" in detail
+    assert "invalid-id-3" in detail
+    assert "3 documents not found" in detail

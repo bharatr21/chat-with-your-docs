@@ -3,6 +3,8 @@ Hybrid retriever using HNSW (semantic) + BM25 (lexical) with RRF fusion
 """
 
 import hashlib
+import logging
+import re
 from typing import Any
 
 from langchain_core.documents import Document
@@ -11,6 +13,24 @@ from rank_bm25 import BM25Okapi
 from app.config import settings
 from app.db.chroma import chroma_manager
 
+logger = logging.getLogger(__name__)
+
+# Try to import NLTK for better tokenization
+try:
+    import nltk
+    from nltk.tokenize import word_tokenize
+
+    # Try to use punkt tokenizer, fall back to simple split if unavailable
+    try:
+        nltk.data.find("tokenizers/punkt")
+        HAS_NLTK = True
+    except LookupError:
+        HAS_NLTK = False
+        logger.info("NLTK punkt tokenizer not found, using simple tokenization")
+except ImportError:
+    HAS_NLTK = False
+    logger.info("NLTK not available, using simple tokenization")
+
 
 class HybridRetriever:
     """Hybrid retriever combining HNSW vector search and BM25 keyword search"""
@@ -18,6 +38,34 @@ class HybridRetriever:
     def __init__(self, document_ids: list[str] = None):
         self.document_ids = document_ids or []
         self.vectorstore = chroma_manager.get_vectorstore()
+
+    @staticmethod
+    def _tokenize(text: str) -> list[str]:
+        """
+        Tokenize text for BM25 search.
+
+        Uses NLTK word_tokenize if available for better handling of punctuation,
+        contractions, and special characters. Falls back to regex-based tokenization.
+
+        Args:
+            text: Text to tokenize
+
+        Returns:
+            List of lowercase tokens
+        """
+        if HAS_NLTK:
+            # Use NLTK tokenizer for better handling of punctuation and contractions
+            try:
+                tokens = word_tokenize(text.lower())
+                # Filter out pure punctuation tokens
+                return [token for token in tokens if re.search(r"\w", token)]
+            except Exception as e:
+                logger.debug(f"NLTK tokenization failed, using fallback: {e}")
+
+        # Fallback: regex-based tokenization (handles punctuation better than split())
+        # Matches word characters (letters, numbers, underscores) and contractions
+        tokens = re.findall(r"\b\w+(?:'\w+)?\b", text.lower())
+        return tokens
 
     def retrieve(self, query: str, top_k: int = None) -> list[Document]:
         """
@@ -74,7 +122,12 @@ class HybridRetriever:
 
             return docs
 
-        except Exception:
+        except Exception as e:
+            logger.error(
+                "Failed to retrieve documents by IDs",
+                extra={"doc_ids": doc_ids, "error": str(e)},
+                exc_info=True,
+            )
             return []
 
     def _vector_search(self, query: str, k: int) -> list[tuple]:
@@ -89,7 +142,12 @@ class HybridRetriever:
             # Convert scores to similarity (Chroma returns distance)
             return [(doc, 1.0 / (1.0 + score)) for doc, score in results]
 
-        except Exception:
+        except Exception as e:
+            logger.error(
+                "Failed to perform vector search",
+                extra={"query": query, "k": k, "doc_ids": self.document_ids, "error": str(e)},
+                exc_info=True,
+            )
             return []
 
     def _bm25_search(self, query: str, documents: list[Document], k: int) -> list[tuple]:
@@ -98,14 +156,14 @@ class HybridRetriever:
             return []
 
         try:
-            # Tokenize documents
-            tokenized_docs = [doc.page_content.lower().split() for doc in documents]
+            # Tokenize documents using improved tokenizer
+            tokenized_docs = [self._tokenize(doc.page_content) for doc in documents]
 
             # Create BM25 index
             bm25 = BM25Okapi(tokenized_docs)
 
-            # Tokenize query
-            tokenized_query = query.lower().split()
+            # Tokenize query using improved tokenizer
+            tokenized_query = self._tokenize(query)
 
             # Get BM25 scores
             scores = bm25.get_scores(tokenized_query)
@@ -116,7 +174,17 @@ class HybridRetriever:
 
             return doc_scores[:k]
 
-        except Exception:
+        except Exception as e:
+            logger.error(
+                "Failed to perform BM25 search",
+                extra={
+                    "query": query,
+                    "k": k,
+                    "num_documents": len(documents),
+                    "error": str(e),
+                },
+                exc_info=True,
+            )
             return []
 
     @staticmethod
@@ -129,7 +197,7 @@ class HybridRetriever:
         """
         # Try to use metadata for semantic identification
         filename = doc.metadata.get("filename", "")
-        chunk_index = doc.metadata.get("chunk_index", "")
+        chunk_index = doc.metadata.get("chunk_index")
 
         if filename and chunk_index is not None:
             # Use filename and chunk index as primary key

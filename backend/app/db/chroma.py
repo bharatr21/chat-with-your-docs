@@ -4,6 +4,7 @@ ChromaDB connection and configuration with HNSW
 
 from __future__ import annotations
 
+import logging
 import os
 
 import chromadb
@@ -12,6 +13,8 @@ from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class ChromaDBManager:
@@ -81,7 +84,11 @@ class ChromaDBManager:
         # Get or create collection with HNSW metadata
         try:
             collection = client.get_or_create_collection(name=collection_name, metadata=hnsw_config)
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "Failed to create collection with HNSW config, falling back to existing collection",
+                extra={"collection_name": collection_name, "error": str(e)},
+            )
             collection = client.get_collection(name=collection_name)
 
         return collection
@@ -109,8 +116,11 @@ class ChromaDBManager:
         client = self.get_client()
         try:
             client.delete_collection(name=collection_name)
-        except Exception:
-            pass  # Collection doesn't exist
+        except Exception as e:
+            logger.debug(
+                "Failed to delete collection (may not exist)",
+                extra={"collection_name": collection_name, "error": str(e)},
+            )
 
     def reset(self):
         """Reset ChromaDB (delete all collections)"""

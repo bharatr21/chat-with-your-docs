@@ -2,7 +2,9 @@
 Documents API endpoints
 """
 
+import logging
 import os
+import re
 import shutil
 import uuid
 
@@ -19,11 +21,57 @@ from app.models.schemas import (
 )
 from app.services.document import DocumentProcessor, metadata_manager
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Ensure uploads directory exists
 UPLOADS_DIR = "./uploads"
 os.makedirs(UPLOADS_DIR, exist_ok=True)
+
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Sanitize filename to prevent path traversal and other security issues.
+
+    Args:
+        filename: Original filename from user upload
+
+    Returns:
+        Sanitized filename safe for filesystem operations
+
+    Security measures:
+    - Removes all directory components (path traversal prevention)
+    - Removes null bytes
+    - Replaces or removes dangerous characters
+    - Ensures filename is not empty after sanitization
+    """
+    # Remove any directory components (handles both / and \ separators)
+    filename = os.path.basename(filename)
+
+    # Remove null bytes (can cause issues in C-based filesystem APIs)
+    filename = filename.replace("\x00", "")
+
+    # Remove or replace potentially dangerous characters
+    # Keep: letters, digits, dots, hyphens, underscores, spaces
+    filename = re.sub(r'[^\w\s.-]', '_', filename)
+
+    # Replace consecutive dots (prevents ../ patterns after sanitization)
+    filename = re.sub(r'\.\.+', '.', filename)
+
+    # Remove leading/trailing whitespace and dots (can cause issues on some systems)
+    filename = filename.strip(". \t")
+
+    # Ensure filename is not empty after sanitization
+    if not filename:
+        filename = "unnamed_file"
+
+    # Limit filename length (filesystem limits, typically 255 bytes)
+    max_length = 200  # Leave room for doc_id prefix
+    if len(filename) > max_length:
+        name, ext = os.path.splitext(filename)
+        filename = name[:max_length - len(ext)] + ext
+
+    return filename
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
@@ -35,10 +83,13 @@ async def upload_document(file: UploadFile = File(...)):
             status_code=400, detail="No filename provided in upload"
         )
 
-    # Validate file type
+    # Sanitize filename to prevent path traversal and other security issues
+    safe_filename = sanitize_filename(file.filename)
+
+    # Validate file type (use sanitized filename)
     processor = DocumentProcessor()
 
-    if not processor.is_supported(file.filename):
+    if not processor.is_supported(safe_filename):
         raise HTTPException(
             status_code=400, detail="Unsupported file type. Supported: PDF, DOCX, TXT, MD, CSV"
         )
@@ -57,27 +108,29 @@ async def upload_document(file: UploadFile = File(...)):
     # Generate document ID
     doc_id = str(uuid.uuid4())
 
-    # Save file temporarily
-    file_path = os.path.join(UPLOADS_DIR, f"{doc_id}_{file.filename}")
+    # Save file temporarily (use sanitized filename)
+    file_path = os.path.join(UPLOADS_DIR, f"{doc_id}_{safe_filename}")
 
+    chunks_added = False
     try:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Process document
-        chunks, metadata = processor.process_document(file_path, file.filename, doc_id)
+        # Process document (use sanitized filename)
+        chunks, metadata = processor.process_document(file_path, safe_filename, doc_id)
 
         # Add to vector store
         vectorstore = chroma_manager.get_vectorstore()
         vectorstore.add_documents(chunks)
+        chunks_added = True
 
         # Save metadata
         metadata_manager.save_metadata(doc_id, metadata)
 
-        # Create response
+        # Create response (use sanitized filename)
         doc_metadata = DocumentMetadata(
-            title=metadata.get("title", file.filename),
-            filename=file.filename,
+            title=metadata.get("title", safe_filename),
+            filename=safe_filename,
             file_size=file_size,
             file_type=metadata.get("file_type", "unknown"),
             page_count=metadata.get("page_count"),
@@ -87,16 +140,31 @@ async def upload_document(file: UploadFile = File(...)):
 
         return DocumentUploadResponse(
             id=doc_id,
-            filename=file.filename,
+            filename=safe_filename,
             status="success",
             message="Document uploaded and processed successfully",
             metadata=doc_metadata,
         )
 
     except Exception as e:
-        # Clean up on error
+        # Clean up on error - remove both file and ChromaDB entries
         if os.path.exists(file_path):
             os.remove(file_path)
+
+        # Clean up orphaned chunks from ChromaDB if they were added
+        if chunks_added:
+            try:
+                collection = chroma_manager.get_collection()
+                collection.delete(where={"doc_id": doc_id})
+                logger.info(f"Cleaned up orphaned chunks for doc_id: {doc_id}")
+            except Exception as cleanup_error:
+                # Log but don't fail if ChromaDB cleanup fails
+                logger.error(
+                    "Failed to clean up orphaned ChromaDB chunks",
+                    extra={"doc_id": doc_id, "error": str(cleanup_error)},
+                    exc_info=True,
+                )
+
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
