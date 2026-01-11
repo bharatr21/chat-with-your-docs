@@ -2,7 +2,7 @@
 Pydantic schemas for request/response models
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -15,7 +15,7 @@ class Message(BaseModel):
 
     role: str = Field(..., description="Message role: 'user' or 'assistant'")
     content: str = Field(..., description="Message content")
-    timestamp: datetime | None = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime | None = Field(default_factory=lambda: datetime.now(datetime.UTC))
 
 
 class ChatRequest(BaseModel):
@@ -73,7 +73,7 @@ class DocumentMetadata(BaseModel):
     file_type: str
     page_count: int | None = None
     headers: list[str] = Field(default_factory=list)
-    upload_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    upload_date: datetime = Field(default_factory=lambda: datetime.now(datetime.UTC))
     chunk_count: int | None = None
 
 

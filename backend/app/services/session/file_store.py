@@ -6,7 +6,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.config import settings
@@ -71,7 +71,7 @@ class SessionStore:
     ) -> SessionInfo:
         """Create a new session"""
         session_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         session_data = {
             "id": session_id,
@@ -123,7 +123,7 @@ class SessionStore:
         if name is not None:
             session_data["name"] = name
 
-        session_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        session_data["updated_at"] = datetime.now(UTC).isoformat()
 
         self._save_session(session_id, session_data)
 
@@ -165,7 +165,7 @@ class SessionStore:
 
         message_dict = message.model_dump() if isinstance(message, Message) else message
         session_data["messages"].append(message_dict)
-        session_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        session_data["updated_at"] = datetime.now(UTC).isoformat()
 
         self._save_session(session_id, session_data)
 
@@ -204,14 +204,14 @@ class SessionStore:
             created_at = datetime.fromisoformat(created_at)
             # Make timezone-aware if naive (assume UTC for legacy data)
             if created_at.tzinfo is None:
-                created_at = created_at.replace(tzinfo=timezone.utc)
+                created_at = created_at.replace(tzinfo=UTC)
 
         updated_at = session_data.get("updated_at")
         if isinstance(updated_at, str):
             updated_at = datetime.fromisoformat(updated_at)
             # Make timezone-aware if naive (assume UTC for legacy data)
             if updated_at.tzinfo is None:
-                updated_at = updated_at.replace(tzinfo=timezone.utc)
+                updated_at = updated_at.replace(tzinfo=UTC)
 
         return SessionInfo(
             id=session_data["id"],

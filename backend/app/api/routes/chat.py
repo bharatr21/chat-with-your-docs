@@ -46,17 +46,13 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
             else:
                 # Session doesn't exist - create new session
                 session = session_store.create_session(
-                    model_id=request.model_id,
-                    document_ids=request.document_ids or [],
-                    name=None
+                    model_id=request.model_id, document_ids=request.document_ids or [], name=None
                 )
                 request.session_id = session.id
         except ValueError:
             # Invalid session ID format - create new session
             session = session_store.create_session(
-                model_id=request.model_id,
-                document_ids=request.document_ids or [],
-                name=None
+                model_id=request.model_id, document_ids=request.document_ids or [], name=None
             )
             request.session_id = session.id
 
@@ -170,4 +166,4 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
         raise
     except Exception as e:
         logger.exception(f"Unexpected error in chat endpoint: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e

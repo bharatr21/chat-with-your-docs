@@ -87,6 +87,15 @@ jobs:
         working-directory: ./backend
         run: uv sync
 
+      - name: Start backend server
+        working-directory: ./backend
+        run: |
+          uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          echo $! > backend.pid
+          sleep 5  # Wait for server to start
+        env:
+          DEFAULT_HF_API_KEY: ${{ secrets.DEFAULT_HF_API_KEY || 'test_key' }}
+
       # Setup frontend
       - name: Setup Node.js
         uses: actions/setup-node@v4

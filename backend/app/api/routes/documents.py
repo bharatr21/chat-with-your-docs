@@ -53,10 +53,10 @@ def sanitize_filename(filename: str) -> str:
 
     # Remove or replace potentially dangerous characters
     # Keep: letters, digits, dots, hyphens, underscores, spaces
-    filename = re.sub(r'[^\w\s.-]', '_', filename)
+    filename = re.sub(r"[^\w\s.-]", "_", filename)
 
     # Replace consecutive dots (prevents ../ patterns after sanitization)
-    filename = re.sub(r'\.\.+', '.', filename)
+    filename = re.sub(r"\.\.+", ".", filename)
 
     # Remove leading/trailing whitespace and dots (can cause issues on some systems)
     filename = filename.strip(". \t")
@@ -72,7 +72,7 @@ def sanitize_filename(filename: str) -> str:
         # Validate extension length to prevent negative truncation
         if len(ext) >= max_length:
             raise ValueError(f"File extension too long (max {max_length - 1} characters)")
-        filename = name[:max_length - len(ext)] + ext
+        filename = name[: max_length - len(ext)] + ext
 
     return filename
 
@@ -82,9 +82,7 @@ async def upload_document(file: UploadFile = File(...)):
     """Upload and process a document"""
     # Validate filename exists
     if file.filename is None:
-        raise HTTPException(
-            status_code=400, detail="No filename provided in upload"
-        )
+        raise HTTPException(status_code=400, detail="No filename provided in upload")
 
     # Sanitize filename to prevent path traversal and other security issues
     safe_filename = sanitize_filename(file.filename)
@@ -212,6 +210,8 @@ async def get_document(document_id: str):
                 chunk_count=meta.get("chunk_count"),
             ),
         )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail="Document not found") from e
 
@@ -219,10 +219,10 @@ async def get_document(document_id: str):
 @router.delete("/{document_id}", response_model=DocumentDeleteResponse)
 async def delete_document(document_id: str):
     """Delete a document"""
-    if not metadata_manager.exists(document_id):
-        raise HTTPException(status_code=404, detail="Document not found")
-
     try:
+        if not metadata_manager.exists(document_id):
+            raise HTTPException(status_code=404, detail="Document not found")
+
         # Delete from ChromaDB
         collection = chroma_manager.get_collection()
         collection.delete(where={"doc_id": document_id})
@@ -238,6 +238,7 @@ async def delete_document(document_id: str):
         return DocumentDeleteResponse(
             id=document_id, status="deleted", message="Document deleted successfully"
         )
-
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

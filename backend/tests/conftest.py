@@ -10,8 +10,7 @@ from fastapi.testclient import TestClient
 
 # Set test environment before importing app
 os.environ["CHROMA_DB_PATH"] = tempfile.mkdtemp()
-os.environ["UPLOADS_PATH"] = tempfile.mkdtemp()
-os.environ["SESSIONS_PATH"] = tempfile.mkdtemp()
+os.environ["SESSION_DIR"] = tempfile.mkdtemp()
 os.environ["DEFAULT_HF_API_KEY"] = "test_hf_key_default"
 
 from app.main import app

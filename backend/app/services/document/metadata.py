@@ -6,7 +6,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -58,8 +58,18 @@ class MetadataManager:
 
         # Ensure the resolved path is within the metadata directory
         # This prevents path traversal even if validation somehow fails
-        if not os.path.commonpath([self.metadata_dir, metadata_path]) == self.metadata_dir:
-            raise ValueError(f"Path traversal detected: {doc_id}")
+        try:
+            # Normalize for case-insensitive platforms (Windows) and absolute paths
+            metadata_dir_abs = os.path.normcase(os.path.abspath(self.metadata_dir))
+            metadata_path_abs = os.path.normcase(os.path.abspath(metadata_path))
+
+            if not (
+                metadata_path_abs.startswith(metadata_dir_abs + os.sep)
+                or metadata_path_abs == metadata_dir_abs
+            ):
+                raise ValueError(f"Path traversal detected: {doc_id}")
+        except (ValueError, OSError) as e:
+            raise ValueError(f"Path traversal detected: {doc_id}") from e
 
         return metadata_path
 
@@ -72,7 +82,7 @@ class MetadataManager:
 
         # Add timestamps
         if "upload_date" not in metadata_copy:
-            metadata_copy["upload_date"] = datetime.now(timezone.utc).isoformat()
+            metadata_copy["upload_date"] = datetime.now(datetime.UTC).isoformat()
 
         with open(metadata_path, "w") as f:
             json.dump(metadata_copy, f, indent=2, default=str)
