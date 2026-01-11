@@ -20,6 +20,7 @@ from app.models.schemas import (
     DocumentUploadResponse,
 )
 from app.services.document import DocumentProcessor, metadata_manager
+from app.services.session import session_store
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -222,6 +223,21 @@ async def delete_document(document_id: str):
     try:
         if not metadata_manager.exists(document_id):
             raise HTTPException(status_code=404, detail="Document not found")
+
+        # Check if document is referenced by any active sessions
+        sessions = session_store.list_sessions()
+        referencing_sessions = [
+            session.id for session in sessions if document_id in session.document_ids
+        ]
+
+        if referencing_sessions:
+            session_count = len(referencing_sessions)
+            detail = (
+                f"Cannot delete document: referenced by {session_count} active session(s). "
+                f"Delete or update the sessions first: {', '.join(referencing_sessions[:3])}"
+                + ("..." if session_count > 3 else "")
+            )
+            raise HTTPException(status_code=409, detail=detail)
 
         # Delete from ChromaDB
         collection = chroma_manager.get_collection()

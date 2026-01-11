@@ -98,7 +98,8 @@ class LLMProvider:
         """Stream LLM response"""
         async for chunk in llm.astream(messages):
             if hasattr(chunk, "content"):
-                yield chunk.content
+                if chunk.content is not None:
+                    yield chunk.content
             else:
                 yield str(chunk)
 
