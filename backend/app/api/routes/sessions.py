@@ -28,9 +28,14 @@ async def create_session(request: SessionCreate):
         )
 
     # Validate all document_ids exist - collect all invalid IDs for better UX
-    invalid_doc_ids = [
-        doc_id for doc_id in request.document_ids if not metadata_manager.exists(doc_id)
-    ]
+    invalid_doc_ids = []
+    for doc_id in request.document_ids:
+        try:
+            if not metadata_manager.exists(doc_id):
+                invalid_doc_ids.append(doc_id)
+        except ValueError:
+            # Invalid UUID format or path traversal attempt
+            invalid_doc_ids.append(doc_id)
 
     if invalid_doc_ids:
         if len(invalid_doc_ids) == 1:

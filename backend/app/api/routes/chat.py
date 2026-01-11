@@ -43,10 +43,22 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
         try:
             if session_store.session_exists(request.session_id):
                 session = session_store.get_session(request.session_id)
+            else:
+                # Session doesn't exist - create new session
+                session = session_store.create_session(
+                    model_id=request.model_id,
+                    document_ids=request.document_ids or [],
+                    name=None
+                )
+                request.session_id = session.id
         except ValueError:
-            # Invalid session ID format - treat as if session doesn't exist
-            # This allows the chat to proceed without a session
-            pass
+            # Invalid session ID format - create new session
+            session = session_store.create_session(
+                model_id=request.model_id,
+                document_ids=request.document_ids or [],
+                name=None
+            )
+            request.session_id = session.id
 
     # Get the last user message
     if not request.messages:
@@ -154,5 +166,8 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
                 "session_id": request.session_id,
             }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.exception(f"Unexpected error in chat endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")

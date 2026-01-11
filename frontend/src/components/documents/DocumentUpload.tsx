@@ -9,7 +9,7 @@ interface DocumentUploadProps {
 }
 
 const ACCEPTED_TYPES = ['.pdf', '.docx', '.txt', '.md', '.csv'];
-const MAX_SIZE = 100 * 1024 * 1024; // 50MB
+const MAX_SIZE = 100 * 1024 * 1024; // 100MB
 
 export function DocumentUpload({ onUpload, isUploading }: DocumentUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -22,7 +22,7 @@ export function DocumentUpload({ onUpload, isUploading }: DocumentUploadProps) {
       return `Invalid file type. Accepted: ${ACCEPTED_TYPES.join(', ')}`;
     }
     if (file.size > MAX_SIZE) {
-      return 'File too large. Maximum size is 50MB.';
+      return 'File too large. Maximum size is 100MB.';
     }
     return null;
   }, []);
@@ -123,7 +123,7 @@ export function DocumentUpload({ onUpload, isUploading }: DocumentUploadProps) {
               <div>
                 <p className="text-sm font-medium">Drop a file or click to upload</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  PDF, DOCX, TXT, CSV (max 50MB)
+                  PDF, DOCX, TXT, MD, CSV (max 100MB)
                 </p>
               </div>
             </>
