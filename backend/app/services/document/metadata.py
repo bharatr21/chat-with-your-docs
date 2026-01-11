@@ -6,7 +6,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -82,7 +82,7 @@ class MetadataManager:
 
         # Add timestamps
         if "upload_date" not in metadata_copy:
-            metadata_copy["upload_date"] = datetime.now(datetime.UTC).isoformat()
+            metadata_copy["upload_date"] = datetime.now(UTC).isoformat()
 
         with open(metadata_path, "w") as f:
             json.dump(metadata_copy, f, indent=2, default=str)
