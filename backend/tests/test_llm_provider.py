@@ -22,20 +22,30 @@ class TestLLMProvider:
 
     @patch("app.services.llm.provider.ModelRegistry.is_model_available")
     @patch("app.services.llm.provider.ModelRegistry.get_provider")
+    @patch("app.services.llm.provider.ModelRegistry.get_env_key")
+    @patch("app.services.llm.provider.ModelRegistry._get_api_key")
     @patch("app.services.llm.provider.ChatOpenAI")
     def test_create_openai_llm(
-        self, mock_openai, mock_get_provider, mock_is_available, monkeypatch
+        self,
+        mock_openai,
+        mock_get_api_key,
+        mock_get_env_key,
+        mock_get_provider,
+        mock_is_available,
+        monkeypatch,
     ):
         """Test creating OpenAI LLM"""
         monkeypatch.setenv("OPENAI_API_KEY", "test_key")
         mock_is_available.return_value = True
         mock_get_provider.return_value = "OpenAI"
+        mock_get_env_key.return_value = "OPENAI_API_KEY"
+        mock_get_api_key.return_value = "test_key"
 
-        LLMProvider.create_llm("gpt-5-mini", temperature=0.5, max_tokens=500, streaming=True)
+        LLMProvider.create_llm("gpt-4o-mini", temperature=0.5, max_tokens=500, streaming=True)
 
         mock_openai.assert_called_once()
         call_kwargs = mock_openai.call_args[1]
-        assert call_kwargs["model"] == "gpt-5-mini"
+        assert call_kwargs["model"] == "gpt-4o-mini"
         assert call_kwargs["temperature"] == 0.5
         assert call_kwargs["max_tokens"] == 500
         assert call_kwargs["streaming"] is True
@@ -61,22 +71,32 @@ class TestLLMProvider:
         mock_get_env_key.return_value = "ANTHROPIC_API_KEY"
         mock_get_api_key.return_value = "test_key"
 
-        LLMProvider.create_llm("claude-haiku-4-5")
+        LLMProvider.create_llm("claude-haiku-4-5-20251001")
 
         mock_anthropic.assert_called_once()
 
     @patch("app.services.llm.provider.ModelRegistry.is_model_available")
     @patch("app.services.llm.provider.ModelRegistry.get_provider")
+    @patch("app.services.llm.provider.ModelRegistry.get_env_key")
+    @patch("app.services.llm.provider.ModelRegistry._get_api_key")
     @patch("app.services.llm.provider.ChatGoogleGenerativeAI")
     def test_create_google_llm(
-        self, mock_google, mock_get_provider, mock_is_available, monkeypatch
+        self,
+        mock_google,
+        mock_get_api_key,
+        mock_get_env_key,
+        mock_get_provider,
+        mock_is_available,
+        monkeypatch,
     ):
         """Test creating Google LLM"""
         monkeypatch.setenv("GEMINI_API_KEY", "test_key")
         mock_is_available.return_value = True
         mock_get_provider.return_value = "Google"
+        mock_get_env_key.return_value = "GEMINI_API_KEY"
+        mock_get_api_key.return_value = "test_key"
 
-        LLMProvider.create_llm("gemini-3-flash-preview")
+        LLMProvider.create_llm("gemini-2.5-flash")
 
         mock_google.assert_called_once()
 
@@ -231,10 +251,18 @@ class TestLLMProvider:
             with patch(
                 "app.services.llm.provider.ModelRegistry.get_provider", return_value="OpenAI"
             ):
-                with patch("app.services.llm.provider.ChatOpenAI") as mock_openai:
-                    LLMProvider.create_llm("gpt-5-mini")
+                with patch(
+                    "app.services.llm.provider.ModelRegistry.get_env_key",
+                    return_value="OPENAI_API_KEY",
+                ):
+                    with patch(
+                        "app.services.llm.provider.ModelRegistry._get_api_key",
+                        return_value="test_key",
+                    ):
+                        with patch("app.services.llm.provider.ChatOpenAI") as mock_openai:
+                            LLMProvider.create_llm("gpt-4o-mini")
 
-                    call_kwargs = mock_openai.call_args[1]
-                    assert call_kwargs["temperature"] == 0.7
-                    assert call_kwargs["max_tokens"] == 1024
-                    assert call_kwargs["streaming"] is True
+                            call_kwargs = mock_openai.call_args[1]
+                            assert call_kwargs["temperature"] == 0.7
+                            assert call_kwargs["max_tokens"] == 1024
+                            assert call_kwargs["streaming"] is True

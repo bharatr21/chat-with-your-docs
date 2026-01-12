@@ -10,7 +10,7 @@ from langchain_core.documents import Document
 from app.services.rag.retriever import HybridRetriever
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_chroma_manager():
     """Mock ChromaDB manager"""
     with patch("app.services.rag.retriever.chroma_manager") as mock:
@@ -147,10 +147,22 @@ class TestHybridRetriever:
         retriever = HybridRetriever()
         results = retriever._bm25_search("Python", sample_documents, k=5)
 
-        # Documents with "Python" should be ranked higher
-        [score for _, score in results]
-        # Scores should be in descending order (or at least not ascending for all)
+        # Should return results
         assert len(results) > 0
+
+        # Extract documents and scores
+        docs = [doc for doc, _ in results]
+        scores = [score for _, score in results]
+
+        # Scores should be in descending order (non-increasing)
+        for i in range(len(scores) - 1):
+            assert scores[i] >= scores[i + 1], f"Scores not in descending order: {scores}"
+
+        # Top result should contain "Python" (either doc1 or doc1 chunk1)
+        top_doc = docs[0]
+        assert "Python" in top_doc.page_content, (
+            f"Top result should contain 'Python', got: {top_doc.page_content}"
+        )
 
     def test_reciprocal_rank_fusion_basic(self):
         """Test reciprocal rank fusion merging"""
@@ -162,7 +174,7 @@ class TestHybridRetriever:
         bm25_results = [(doc2, 15.0), (doc3, 10.0)]
 
         retriever = HybridRetriever()
-        fused = retriever._reciprocal_rank_fusion(vector_results, bm25_results, k=5)
+        fused = retriever._reciprocal_rank_fusion(vector_results, bm25_results, top_k=5)
 
         # Should merge results
         assert len(fused) <= 5
@@ -173,12 +185,12 @@ class TestHybridRetriever:
         retriever = HybridRetriever()
 
         # Both empty
-        fused = retriever._reciprocal_rank_fusion([], [], k=5)
+        fused = retriever._reciprocal_rank_fusion([], [], top_k=5)
         assert fused == []
 
         # One empty
         doc = Document(page_content="Test", metadata={})
-        fused = retriever._reciprocal_rank_fusion([(doc, 0.8)], [], k=5)
+        fused = retriever._reciprocal_rank_fusion([(doc, 0.8)], [], top_k=5)
         assert len(fused) == 1
 
     def test_reciprocal_rank_fusion_deduplication(self):
@@ -190,7 +202,7 @@ class TestHybridRetriever:
         bm25_results = [(doc, 15.0)]
 
         retriever = HybridRetriever()
-        fused = retriever._reciprocal_rank_fusion(vector_results, bm25_results, k=5)
+        fused = retriever._reciprocal_rank_fusion(vector_results, bm25_results, top_k=5)
 
         # Should only appear once with combined score
         assert len(fused) == 1

@@ -83,6 +83,10 @@ class HybridRetriever:
 
     def _get_documents_by_ids(self, doc_ids: list[str]) -> list[Document]:
         """Get all chunks for specified document IDs"""
+        # Return empty list if doc_ids is explicitly empty to prevent unfiltered queries
+        if doc_ids is not None and len(doc_ids) == 0:
+            return []
+
         collection = chroma_manager.get_collection()
 
         try:
@@ -92,7 +96,7 @@ class HybridRetriever:
                     where={"doc_id": {"$in": doc_ids}}, include=["documents", "metadatas"]
                 )
             else:
-                # Get all documents
+                # Get all documents (when doc_ids is None, not empty list)
                 result = collection.get(include=["documents", "metadatas"])
 
             if not result or not result.get("documents"):
@@ -152,7 +156,7 @@ class HybridRetriever:
             scores = bm25.get_scores(tokenized_query)
 
             # Get top-k results
-            doc_scores = list(zip(documents, scores, strict=True))
+            doc_scores = list(zip(documents, scores, strict=False))
             doc_scores.sort(key=lambda x: x[1], reverse=True)
 
             return doc_scores[:k]
@@ -175,12 +179,15 @@ class HybridRetriever:
         """
         Generate a unique key for a document using metadata and content hash.
 
-        Uses filename + chunk_index if available, otherwise falls back to content hash.
+        Uses filename + chunk_index (or chunk_id) if available, otherwise falls back to content hash.
         This ensures documents with identical headers but different content are not merged.
         """
         # Try to use metadata for semantic identification
         filename = doc.metadata.get("filename", "")
+        # Check both chunk_index (preferred) and chunk_id (for legacy/test compatibility)
         chunk_index = doc.metadata.get("chunk_index")
+        if chunk_index is None:
+            chunk_index = doc.metadata.get("chunk_id")
 
         if filename and chunk_index is not None:
             # Use filename and chunk index as primary key
@@ -191,12 +198,25 @@ class HybridRetriever:
         return f"hash::{content_hash}"
 
     def _reciprocal_rank_fusion(
-        self, vector_results: list[tuple], bm25_results: list[tuple], k: int, weight: float = 60.0
+        self,
+        vector_results: list[tuple],
+        bm25_results: list[tuple],
+        top_k: int,
+        rrf_k: float = 60.0,
     ) -> list[Document]:
         """
         Combine results using Reciprocal Rank Fusion (RRF)
 
-        RRF formula: score = sum(1 / (rank + k)) for each result list
+        Args:
+            vector_results: Results from vector search
+            bm25_results: Results from BM25 search
+            top_k: Number of top documents to return
+            rrf_k: RRF constant for smoothing (default 60.0)
+
+        Returns:
+            Fused list of documents
+
+        RRF formula: score = sum(1 / (rank + rrf_k)) for each result list
         """
         doc_scores: dict[str, dict[str, Any]] = {}
 
@@ -205,17 +225,17 @@ class HybridRetriever:
             doc_key = self._get_doc_key(doc)
             if doc_key not in doc_scores:
                 doc_scores[doc_key] = {"doc": doc, "score": 0.0}
-            doc_scores[doc_key]["score"] += 1.0 / (rank + weight)
+            doc_scores[doc_key]["score"] += 1.0 / (rank + rrf_k)
 
         # Process BM25 results
         for rank, (doc, _score) in enumerate(bm25_results):
             doc_key = self._get_doc_key(doc)
             if doc_key not in doc_scores:
                 doc_scores[doc_key] = {"doc": doc, "score": 0.0}
-            doc_scores[doc_key]["score"] += 1.0 / (rank + weight)
+            doc_scores[doc_key]["score"] += 1.0 / (rank + rrf_k)
 
         # Sort by fused score
         sorted_docs = sorted(doc_scores.values(), key=lambda x: x["score"], reverse=True)
 
         # Return top-k documents
-        return [item["doc"] for item in sorted_docs[:k]]
+        return [item["doc"] for item in sorted_docs[:top_k]]

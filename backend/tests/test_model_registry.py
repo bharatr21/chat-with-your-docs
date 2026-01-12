@@ -33,9 +33,9 @@ class TestModelRegistry:
 
         # Check expected models exist
         assert "mistralai/Mixtral-8x7B-Instruct-v0.1" in ModelRegistry.MODEL_DEFINITIONS
-        assert "gpt-5-mini" in ModelRegistry.MODEL_DEFINITIONS
-        assert "claude-haiku-4-5" in ModelRegistry.MODEL_DEFINITIONS
-        assert "gemini-3-flash-preview" in ModelRegistry.MODEL_DEFINITIONS
+        assert "gpt-4o-mini" in ModelRegistry.MODEL_DEFINITIONS
+        assert "claude-haiku-4-5-20251001" in ModelRegistry.MODEL_DEFINITIONS
+        assert "gemini-2.5-flash" in ModelRegistry.MODEL_DEFINITIONS
 
     def test_model_definition_structure(self):
         """Test that each model definition has required fields"""
@@ -106,7 +106,7 @@ class TestModelRegistry:
         mock_settings = create_mock_settings()
 
         with patch("app.core.model_registry.settings", mock_settings):
-            assert not ModelRegistry.is_model_available("gpt-5-mini")
+            assert not ModelRegistry.is_model_available("gpt-4o-mini")
 
     def test_is_model_available_unknown_model(self):
         """Test checking availability of unknown model"""
@@ -126,7 +126,7 @@ class TestModelRegistry:
 
         with patch("app.core.model_registry.settings", mock_settings):
             default = ModelRegistry.get_default_model()
-            assert default == "gpt-5-mini"
+            assert default == "gpt-4o-mini"
 
     def test_get_default_model_none(self):
         """Test getting default model when no keys available"""
@@ -138,10 +138,10 @@ class TestModelRegistry:
 
     def test_get_provider_valid_model(self):
         """Test getting provider for valid model"""
-        provider = ModelRegistry.get_provider("gpt-5-mini")
+        provider = ModelRegistry.get_provider("gpt-4o-mini")
         assert provider == "OpenAI"
 
-        provider = ModelRegistry.get_provider("claude-haiku-4-5")
+        provider = ModelRegistry.get_provider("claude-haiku-4-5-20251001")
         assert provider == "Anthropic"
 
     def test_get_provider_invalid_model(self):
@@ -151,7 +151,7 @@ class TestModelRegistry:
 
     def test_get_env_key_valid_model(self):
         """Test getting environment key for valid model"""
-        env_key = ModelRegistry.get_env_key("gpt-5-mini")
+        env_key = ModelRegistry.get_env_key("gpt-4o-mini")
         assert env_key == "OPENAI_API_KEY"
 
         env_key = ModelRegistry.get_env_key("mistralai/Mixtral-8x7B-Instruct-v0.1")

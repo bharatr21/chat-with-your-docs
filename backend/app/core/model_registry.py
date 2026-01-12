@@ -19,19 +19,19 @@ class ModelRegistry:
             "description": "Mixtral 8x7B Instruct - Fast and efficient open-source model",
             "is_default": True,
         },
-        "gpt-5-mini": {
+        "gpt-4o-mini": {
             "name": "GPT-5 Mini",
             "provider": "OpenAI",
             "env_key": "OPENAI_API_KEY",
             "description": "OpenAI's latest compact model with strong reasoning",
         },
-        "claude-haiku-4-5": {
+        "claude-haiku-4-5-20251001": {
             "name": "Claude Haiku 4.5",
             "provider": "Anthropic",
             "env_key": "ANTHROPIC_API_KEY",
             "description": "Anthropic's fast and efficient Claude model",
         },
-        "gemini-3-flash-preview": {
+        "gemini-2.5-flash": {
             "name": "Gemini 3 Flash",
             "provider": "Google",
             "env_key": "GEMINI_API_KEY",
@@ -136,9 +136,9 @@ class ModelRegistry:
         # Prefer HuggingFace (Mixtral) as default
         for model_id in [
             "mistralai/Mixtral-8x7B-Instruct-v0.1",
-            "gpt-5-mini",
-            "claude-haiku-4-5",
-            "gemini-3-flash-preview",
+            "gpt-4o-mini",
+            "claude-haiku-4-5-20251001",
+            "gemini-2.5-flash",
         ]:
             if cls.is_model_available(model_id, user_keys):
                 return model_id

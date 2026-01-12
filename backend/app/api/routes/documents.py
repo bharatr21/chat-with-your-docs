@@ -33,15 +33,22 @@ os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 def _build_document_metadata(meta: dict[str, Any]) -> DocumentMetadata:
     """Build DocumentMetadata from metadata dictionary."""
-    return DocumentMetadata(
-        title=meta.get("title", meta.get("filename", "Unknown")),
-        filename=meta.get("filename", "Unknown"),
-        file_size=meta.get("file_size", 0),
-        file_type=meta.get("file_type", "unknown"),
-        page_count=meta.get("page_count"),
-        headers=meta.get("headers", []),
-        chunk_count=meta.get("chunk_count"),
-    )
+    # Build kwargs, including upload_date if present
+    kwargs = {
+        "title": meta.get("title", meta.get("filename", "Unknown")),
+        "filename": meta.get("filename", "Unknown"),
+        "file_size": meta.get("file_size", 0),
+        "file_type": meta.get("file_type", "unknown"),
+        "page_count": meta.get("page_count"),
+        "headers": meta.get("headers", []),
+        "chunk_count": meta.get("chunk_count"),
+    }
+
+    # Preserve upload_date if present, otherwise let default factory handle it
+    if "upload_date" in meta:
+        kwargs["upload_date"] = meta["upload_date"]
+
+    return DocumentMetadata(**kwargs)
 
 
 def sanitize_filename(filename: str) -> str:
@@ -66,15 +73,19 @@ def sanitize_filename(filename: str) -> str:
     # Remove null bytes (can cause issues in C-based filesystem APIs)
     filename = filename.replace("\x00", "")
 
+    # Replace all whitespace and control characters with single space
+    # This handles newlines, tabs, carriage returns, etc.
+    filename = re.sub(r"[\s\x00-\x1f\x7f]+", " ", filename)
+
     # Remove or replace potentially dangerous characters
     # Keep: letters, digits, dots, hyphens, underscores, spaces
-    filename = re.sub(r"[^\w\s.-]", "_", filename)
+    filename = re.sub(r"[^\w .-]", "_", filename)
 
     # Replace consecutive dots (prevents ../ patterns after sanitization)
     filename = re.sub(r"\.\.+", ".", filename)
 
     # Remove leading/trailing whitespace and dots (can cause issues on some systems)
-    filename = filename.strip(". \t")
+    filename = filename.strip(". ")
 
     # Ensure filename is not empty after sanitization
     if not filename:
@@ -191,8 +202,26 @@ async def list_documents():
 
     documents = []
     for meta in metadata_list:
-        doc_info = DocumentInfo(id=meta.get("id"), metadata=_build_document_metadata(meta))
-        documents.append(doc_info)
+        # Guard against malformed metadata entries
+        doc_id = meta.get("id")
+        if not doc_id:
+            # Skip entries without recoverable id
+            logger.warning(
+                "Skipping document with missing id in metadata",
+                extra={"filename": meta.get("filename", "unknown")},
+            )
+            continue
+
+        try:
+            doc_info = DocumentInfo(id=doc_id, metadata=_build_document_metadata(meta))
+            documents.append(doc_info)
+        except Exception as e:
+            # Skip invalid entries that fail validation
+            logger.warning(
+                "Skipping document due to validation error",
+                extra={"doc_id": doc_id, "error": str(e)},
+            )
+            continue
 
     return DocumentListResponse(documents=documents, total=len(documents))
 

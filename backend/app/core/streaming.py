@@ -32,13 +32,14 @@ class VercelStreamFormatter:
                     delta_event = {"type": "text-delta", "id": message_id, "delta": chunk}
                     yield f"data: {json.dumps(delta_event)}\n\n"
 
-            # Send completion marker
-            yield "data: [DONE]\n\n"
-
         except Exception as e:
             # Send error event
             error_event = {"type": "error", "id": message_id, "error": str(e)}
             yield f"data: {json.dumps(error_event)}\n\n"
+
+        finally:
+            # Always send completion marker, even after errors
+            yield "data: [DONE]\n\n"
 
     @staticmethod
     def format_sources(sources: list[dict[str, Any]], message_id: str) -> str:

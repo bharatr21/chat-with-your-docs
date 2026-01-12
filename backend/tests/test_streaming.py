@@ -73,7 +73,7 @@ async def test_format_stream_empty_chunks():
 
 @pytest.mark.asyncio
 async def test_format_stream_error_handling():
-    """Test stream formatting handles errors"""
+    """Test stream formatting handles errors and always sends [DONE]"""
 
     async def error_iter():
         yield "chunk1"
@@ -83,14 +83,22 @@ async def test_format_stream_error_handling():
     async for formatted in VercelStreamFormatter.format_stream(error_iter()):
         result.append(formatted)
 
-    # Should have 1 text-delta + 1 error event
-    assert len(result) == 2
+    # Should have 1 text-delta + 1 error event + 1 DONE marker
+    assert len(result) == 3
+
+    # Check text-delta event
+    data0 = json.loads(result[0][6:])
+    assert data0["type"] == "text-delta"
+    assert data0["delta"] == "chunk1"
 
     # Check error event
     assert "error" in result[1]
-    data = json.loads(result[1][6:])
-    assert data["type"] == "error"
-    assert "Test error" in data["error"]
+    data1 = json.loads(result[1][6:])
+    assert data1["type"] == "error"
+    assert "Test error" in data1["error"]
+
+    # Check DONE marker is sent even after error
+    assert result[2] == "data: [DONE]\n\n"
 
 
 @pytest.mark.asyncio

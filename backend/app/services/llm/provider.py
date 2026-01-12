@@ -72,7 +72,8 @@ class LLMProvider:
                     temperature=temperature,
                     max_new_tokens=max_tokens,
                     huggingfacehub_api_token=api_key,
-                )
+                ),
+                streaming=streaming,
             ),
         }
 

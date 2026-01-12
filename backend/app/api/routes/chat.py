@@ -4,7 +4,7 @@ Chat API endpoints with streaming support
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.core.dependencies import get_user_api_keys
@@ -60,7 +60,11 @@ def _get_or_create_session(
 
 
 @router.post("")
-async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_api_keys)):
+async def chat(
+    request: ChatRequest,
+    background_tasks: BackgroundTasks,
+    user_keys: UserAPIKeys = Depends(get_user_api_keys),
+):
     """
     Chat endpoint with RAG and streaming support.
     Compatible with Vercel AI SDK useChat hook.
@@ -114,9 +118,9 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
 
         if request.stream:
             # Streaming response
-            async def generate():
-                full_response = []
+            full_response = []
 
+            async def generate():
                 # Buffer chunks while streaming
                 async def buffered_stream():
                     async for chunk in pipeline.run(
@@ -129,11 +133,18 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
                 async for formatted in VercelStreamFormatter.format_stream(buffered_stream()):
                     yield formatted
 
-                # Save messages to session if session exists
-                if session is not None:
+            # Add background task to persist messages after streaming completes
+            # Note: full_response list will be populated by the generator
+            if session is not None:
+
+                def persist_streamed_messages():
+                    """Join full_response and persist messages"""
+                    final_text = "".join(full_response)
                     _persist_messages_to_session(
-                        request.session_id, user_message, "".join(full_response), stream_mode=True
+                        request.session_id, user_message, final_text, stream_mode=True
                     )
+
+                background_tasks.add_task(persist_streamed_messages)
 
             return StreamingResponse(
                 generate(),
