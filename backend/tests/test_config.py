@@ -111,7 +111,8 @@ def test_get_hf_api_key_none(monkeypatch):
     # Clear environment variables that might be set by conftest
     monkeypatch.delenv("DEFAULT_HF_API_KEY", raising=False)
     monkeypatch.delenv("HF_API_KEY", raising=False)
-    settings = Settings()
+    # Prevent loading from .env file by passing _env_file=None
+    settings = Settings(_env_file=None)
     assert settings.get_hf_api_key() is None
 
 
@@ -123,7 +124,8 @@ def test_api_keys_optional(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    settings = Settings()
+    # Prevent loading from .env file by passing _env_file=None
+    settings = Settings(_env_file=None)
     assert settings.HF_API_KEY is None
     assert settings.OPENAI_API_KEY is None
     assert settings.ANTHROPIC_API_KEY is None

@@ -5,9 +5,10 @@ Document metadata extraction and management
 import json
 import logging
 import os
-import uuid
 from datetime import UTC, datetime
 from typing import Any
+
+from app.utils.security import get_secure_file_path, validate_id_format
 
 logger = logging.getLogger(__name__)
 
@@ -27,18 +28,7 @@ class MetadataManager:
 
         Raises ValueError if doc_id is invalid or contains path traversal characters.
         """
-        if not doc_id:
-            raise ValueError("Document ID cannot be empty")
-
-        # Check for path traversal characters
-        if "/" in doc_id or "\\" in doc_id or ".." in doc_id:
-            raise ValueError(f"Invalid document ID: {doc_id} contains path traversal characters")
-
-        # Validate UUID format (documents are created with UUIDs)
-        try:
-            uuid.UUID(doc_id)
-        except ValueError as e:
-            raise ValueError(f"Invalid document ID format: {doc_id} is not a valid UUID") from e
+        validate_id_format(doc_id, "document ID")
 
     def _get_metadata_path(self, doc_id: str) -> str:
         """
@@ -46,32 +36,8 @@ class MetadataManager:
 
         Raises ValueError if doc_id is invalid or would result in path traversal.
         """
-        # Validate doc_id format
         self._validate_doc_id(doc_id)
-
-        # Construct path
-        metadata_path = os.path.join(self.metadata_dir, f"{doc_id}.json")
-
-        # Normalize path to resolve any remaining issues
-        metadata_path = os.path.normpath(metadata_path)
-        metadata_path = os.path.abspath(metadata_path)
-
-        # Ensure the resolved path is within the metadata directory
-        # This prevents path traversal even if validation somehow fails
-        try:
-            # Normalize for case-insensitive platforms (Windows) and absolute paths
-            metadata_dir_abs = os.path.normcase(os.path.abspath(self.metadata_dir))
-            metadata_path_abs = os.path.normcase(os.path.abspath(metadata_path))
-
-            if not (
-                metadata_path_abs.startswith(metadata_dir_abs + os.sep)
-                or metadata_path_abs == metadata_dir_abs
-            ):
-                raise ValueError(f"Path traversal detected: {doc_id}")
-        except (ValueError, OSError) as e:
-            raise ValueError(f"Path traversal detected: {doc_id}") from e
-
-        return metadata_path
+        return get_secure_file_path(self.metadata_dir, doc_id, ".json")
 
     def save_metadata(self, doc_id: str, metadata: dict[str, Any]):
         """Save document metadata to file"""

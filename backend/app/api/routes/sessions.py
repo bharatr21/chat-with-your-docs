@@ -17,6 +17,30 @@ from app.services.session import session_store
 router = APIRouter()
 
 
+def _is_valid_document(doc_id: str) -> bool:
+    """Check if document ID is valid and exists."""
+    try:
+        return metadata_manager.exists(doc_id)
+    except ValueError:
+        return False
+
+
+def _validate_document_ids(document_ids: list[str]) -> None:
+    """Validate all document IDs exist. Raises HTTPException if any invalid."""
+    invalid_ids = [doc_id for doc_id in document_ids if not _is_valid_document(doc_id)]
+
+    if not invalid_ids:
+        return
+
+    if len(invalid_ids) == 1:
+        detail = f"Invalid document_id: '{invalid_ids[0]}'. Document not found."
+    else:
+        ids_str = "', '".join(invalid_ids)
+        detail = f"Invalid document_ids: '{ids_str}'. {len(invalid_ids)} documents not found."
+
+    raise HTTPException(status_code=400, detail=detail)
+
+
 @router.post("", response_model=SessionInfo)
 async def create_session(request: SessionCreate):
     """Create a new chat session"""
@@ -27,26 +51,8 @@ async def create_session(request: SessionCreate):
             detail=f"Invalid model_id: '{request.model_id}'. Model not found in registry.",
         )
 
-    # Validate all document_ids exist - collect all invalid IDs for better UX
-    invalid_doc_ids = []
-    for doc_id in request.document_ids:
-        try:
-            if not metadata_manager.exists(doc_id):
-                invalid_doc_ids.append(doc_id)
-        except ValueError:
-            # Invalid UUID format or path traversal attempt
-            invalid_doc_ids.append(doc_id)
-
-    if invalid_doc_ids:
-        if len(invalid_doc_ids) == 1:
-            detail = f"Invalid document_id: '{invalid_doc_ids[0]}'. Document not found."
-        else:
-            doc_list = "', '".join(invalid_doc_ids)
-            detail = (
-                f"Invalid document_ids: '{doc_list}'. "
-                f"{len(invalid_doc_ids)} documents not found."
-            )
-        raise HTTPException(status_code=400, detail=detail)
+    # Validate all document_ids exist
+    _validate_document_ids(request.document_ids)
 
     # All validations passed, create session
     session = session_store.create_session(

@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
@@ -28,6 +29,19 @@ router = APIRouter()
 # Ensure uploads directory exists
 UPLOADS_DIR = "./uploads"
 os.makedirs(UPLOADS_DIR, exist_ok=True)
+
+
+def _build_document_metadata(meta: dict[str, Any]) -> DocumentMetadata:
+    """Build DocumentMetadata from metadata dictionary."""
+    return DocumentMetadata(
+        title=meta.get("title", meta.get("filename", "Unknown")),
+        filename=meta.get("filename", "Unknown"),
+        file_size=meta.get("file_size", 0),
+        file_type=meta.get("file_type", "unknown"),
+        page_count=meta.get("page_count"),
+        headers=meta.get("headers", []),
+        chunk_count=meta.get("chunk_count"),
+    )
 
 
 def sanitize_filename(filename: str) -> str:
@@ -177,18 +191,7 @@ async def list_documents():
 
     documents = []
     for meta in metadata_list:
-        doc_info = DocumentInfo(
-            id=meta.get("id"),
-            metadata=DocumentMetadata(
-                title=meta.get("title", meta.get("filename", "Unknown")),
-                filename=meta.get("filename", "Unknown"),
-                file_size=meta.get("file_size", 0),
-                file_type=meta.get("file_type", "unknown"),
-                page_count=meta.get("page_count"),
-                headers=meta.get("headers", []),
-                chunk_count=meta.get("chunk_count"),
-            ),
-        )
+        doc_info = DocumentInfo(id=meta.get("id"), metadata=_build_document_metadata(meta))
         documents.append(doc_info)
 
     return DocumentListResponse(documents=documents, total=len(documents))
@@ -199,18 +202,7 @@ async def get_document(document_id: str):
     """Get document by ID"""
     try:
         meta = metadata_manager.load_metadata(document_id)
-        return DocumentInfo(
-            id=document_id,
-            metadata=DocumentMetadata(
-                title=meta.get("title", meta.get("filename", "Unknown")),
-                filename=meta.get("filename", "Unknown"),
-                file_size=meta.get("file_size", 0),
-                file_type=meta.get("file_type", "unknown"),
-                page_count=meta.get("page_count"),
-                headers=meta.get("headers", []),
-                chunk_count=meta.get("chunk_count"),
-            ),
-        )
+        return DocumentInfo(id=document_id, metadata=_build_document_metadata(meta))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except FileNotFoundError as e:

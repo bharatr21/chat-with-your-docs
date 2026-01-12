@@ -45,50 +45,41 @@ class LLMProvider:
 
         provider = ModelRegistry.get_provider(model_id)
         env_key = ModelRegistry.get_env_key(model_id)
-
-        # Get API key with user keys taking priority
         api_key = ModelRegistry._get_api_key(env_key, user_keys)
 
-        if provider == "OpenAI":
-            return ChatOpenAI(
-                model=model_id,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                streaming=streaming,
-                api_key=api_key,
-            )
+        # Provider factory with common parameters
+        common_params = {
+            "temperature": temperature,
+            "streaming": streaming,
+        }
 
-        elif provider == "Anthropic":
-            return ChatAnthropic(
+        provider_factories = {
+            "OpenAI": lambda: ChatOpenAI(
+                model=model_id, max_tokens=max_tokens, api_key=api_key, **common_params
+            ),
+            "Anthropic": lambda: ChatAnthropic(
+                model=model_id, max_tokens=max_tokens, api_key=api_key, **common_params
+            ),
+            "Google": lambda: ChatGoogleGenerativeAI(
                 model=model_id,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                streaming=streaming,
-                api_key=api_key,
-            )
-
-        elif provider == "Google":
-            return ChatGoogleGenerativeAI(
-                model=model_id,
-                temperature=temperature,
                 max_output_tokens=max_tokens,
-                streaming=streaming,
                 google_api_key=api_key,
-            )
+                **common_params,
+            ),
+            "HuggingFace": lambda: ChatHuggingFace(
+                llm=HuggingFaceEndpoint(
+                    repo_id=model_id,
+                    temperature=temperature,
+                    max_new_tokens=max_tokens,
+                    huggingfacehub_api_token=api_key,
+                )
+            ),
+        }
 
-        elif provider == "HuggingFace":
-            # HuggingFace uses endpoint wrapped in ChatHuggingFace for chat support
-            llm = HuggingFaceEndpoint(
-                repo_id=model_id,
-                temperature=temperature,
-                max_new_tokens=max_tokens,
-                huggingfacehub_api_token=api_key,
-            )
-            # Wrap in ChatHuggingFace to properly handle chat messages
-            return ChatHuggingFace(llm=llm)
-
-        else:
+        if provider not in provider_factories:
             raise ValueError(f"Unknown provider: {provider}")
+
+        return provider_factories[provider]()
 
     @staticmethod
     async def stream_llm_response(
@@ -105,18 +96,20 @@ class LLMProvider:
 
     @staticmethod
     def format_messages(messages: list) -> list:
-        """Convert message dicts to LangChain message objects"""
-        lc_messages = []
+        """Convert message dicts to LangChain message objects."""
+        role_to_message_class = {
+            "user": HumanMessage,
+            "assistant": AIMessage,
+            "system": SystemMessage,
+        }
 
+        lc_messages = []
         for msg in messages:
             role = msg.get("role") if isinstance(msg, dict) else msg.role
             content = msg.get("content") if isinstance(msg, dict) else msg.content
 
-            if role == "user":
-                lc_messages.append(HumanMessage(content=content))
-            elif role == "assistant":
-                lc_messages.append(AIMessage(content=content))
-            elif role == "system":
-                lc_messages.append(SystemMessage(content=content))
+            message_class = role_to_message_class.get(role)
+            if message_class:
+                lc_messages.append(message_class(content=content))
 
         return lc_messages

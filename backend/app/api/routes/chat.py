@@ -10,13 +10,53 @@ from fastapi.responses import StreamingResponse
 from app.core.dependencies import get_user_api_keys
 from app.core.model_registry import ModelRegistry
 from app.core.streaming import VercelStreamFormatter
-from app.models.schemas import ChatRequest, Message
+from app.models.schemas import ChatRequest, Message, SessionInfo
 from app.models.user_keys import UserAPIKeys
 from app.services.rag import RAGPipeline
 from app.services.session import session_store
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _persist_messages_to_session(
+    session_id: str, user_message: Message, assistant_content: str, stream_mode: bool
+) -> None:
+    """Persist user and assistant messages to session with error handling."""
+    try:
+        session_store.add_message(session_id, user_message)
+        assistant_msg = Message(role="assistant", content=assistant_content)
+        session_store.add_message(session_id, assistant_msg)
+    except (ValueError, FileNotFoundError) as e:
+        mode = "streaming" if stream_mode else "non-streaming"
+        logger.warning(
+            f"Failed to persist messages to session after {mode} response",
+            extra={
+                "session_id": session_id,
+                "error": str(e),
+                "error_type": type(e).__name__,
+            },
+        )
+
+
+def _get_or_create_session(
+    session_id: str | None, model_id: str, document_ids: list[str]
+) -> tuple[SessionInfo | None, str | None]:
+    """Get existing session or create new one. Returns (session, session_id)."""
+    if not session_id:
+        return None, None
+
+    try:
+        if session_store.session_exists(session_id):
+            return session_store.get_session(session_id), session_id
+    except ValueError:
+        pass  # Invalid format, will create new
+
+    # Create new session
+    session = session_store.create_session(
+        model_id=model_id, document_ids=document_ids or [], name=None
+    )
+    return session, session.id
 
 
 @router.post("")
@@ -38,23 +78,11 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
             )
 
     # Get or create session
-    session = None
-    if request.session_id:
-        try:
-            if session_store.session_exists(request.session_id):
-                session = session_store.get_session(request.session_id)
-            else:
-                # Session doesn't exist - create new session
-                session = session_store.create_session(
-                    model_id=request.model_id, document_ids=request.document_ids or [], name=None
-                )
-                request.session_id = session.id
-        except ValueError:
-            # Invalid session ID format - create new session
-            session = session_store.create_session(
-                model_id=request.model_id, document_ids=request.document_ids or [], name=None
-            )
-            request.session_id = session.id
+    session, new_session_id = _get_or_create_session(
+        request.session_id, request.model_id, request.document_ids
+    )
+    if new_session_id:
+        request.session_id = new_session_id
 
     # Get the last user message
     if not request.messages:
@@ -103,22 +131,9 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
 
                 # Save messages to session if session exists
                 if session is not None:
-                    try:
-                        # Add user message
-                        session_store.add_message(request.session_id, user_message)
-                        # Add assistant response
-                        assistant_msg = Message(role="assistant", content="".join(full_response))
-                        session_store.add_message(request.session_id, assistant_msg)
-                    except (ValueError, FileNotFoundError) as e:
-                        # Session doesn't exist or invalid - skip saving
-                        logger.warning(
-                            "Failed to persist messages to session after streaming",
-                            extra={
-                                "session_id": request.session_id,
-                                "error": str(e),
-                                "error_type": type(e).__name__,
-                            },
-                        )
+                    _persist_messages_to_session(
+                        request.session_id, user_message, "".join(full_response), stream_mode=True
+                    )
 
             return StreamingResponse(
                 generate(),
@@ -141,20 +156,9 @@ async def chat(request: ChatRequest, user_keys: UserAPIKeys = Depends(get_user_a
 
             # Save to session
             if session is not None:
-                try:
-                    session_store.add_message(request.session_id, user_message)
-                    assistant_msg = Message(role="assistant", content=response_text)
-                    session_store.add_message(request.session_id, assistant_msg)
-                except (ValueError, FileNotFoundError) as e:
-                    # Session doesn't exist or invalid - skip saving
-                    logger.warning(
-                        "Failed to persist messages to session after non-streaming response",
-                        extra={
-                            "session_id": request.session_id,
-                            "error": str(e),
-                            "error_type": type(e).__name__,
-                        },
-                    )
+                _persist_messages_to_session(
+                    request.session_id, user_message, response_text, stream_mode=False
+                )
 
             return {
                 "message": response_text,

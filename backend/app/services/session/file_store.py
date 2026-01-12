@@ -11,6 +11,7 @@ from typing import Any
 
 from app.config import settings
 from app.models.schemas import Message, SessionInfo
+from app.utils.security import get_secure_file_path, validate_id_format
 
 logger = logging.getLogger(__name__)
 
@@ -30,18 +31,7 @@ class SessionStore:
 
         Raises ValueError if session_id is invalid or contains path traversal characters.
         """
-        if not session_id:
-            raise ValueError("Session ID cannot be empty")
-
-        # Check for path traversal characters
-        if "/" in session_id or "\\" in session_id or ".." in session_id:
-            raise ValueError(f"Invalid session ID: {session_id} contains path traversal characters")
-
-        # Validate UUID format (sessions are created with UUIDs)
-        try:
-            uuid.UUID(session_id)
-        except ValueError as e:
-            raise ValueError(f"Invalid session ID format: {session_id} is not a valid UUID") from e
+        validate_id_format(session_id, "session ID")
 
     def _get_session_path(self, session_id: str) -> str:
         """
@@ -49,22 +39,8 @@ class SessionStore:
 
         Raises ValueError if session_id is invalid or would result in path traversal.
         """
-        # Validate session_id format
         self._validate_session_id(session_id)
-
-        # Construct path
-        session_path = os.path.join(self.session_dir, f"{session_id}.json")
-
-        # Normalize path to resolve any remaining issues
-        session_path = os.path.normpath(session_path)
-        session_path = os.path.abspath(session_path)
-
-        # Ensure the resolved path is within the session directory
-        # This prevents path traversal even if validation somehow fails
-        if not os.path.commonpath([self.session_dir, session_path]) == self.session_dir:
-            raise ValueError(f"Path traversal detected: {session_id}")
-
-        return session_path
+        return get_secure_file_path(self.session_dir, session_id, ".json")
 
     def create_session(
         self, model_id: str, document_ids: list[str], name: str | None = None
@@ -190,6 +166,20 @@ class SessionStore:
         with open(session_path) as f:
             return json.load(f)
 
+    @staticmethod
+    def _parse_datetime_with_tz(dt_value: str | datetime | None) -> datetime | None:
+        """Parse datetime string and ensure timezone-aware (assume UTC for naive datetimes)."""
+        if dt_value is None:
+            return None
+
+        if isinstance(dt_value, str):
+            dt_value = datetime.fromisoformat(dt_value)
+
+        if isinstance(dt_value, datetime) and dt_value.tzinfo is None:
+            dt_value = dt_value.replace(tzinfo=UTC)
+
+        return dt_value
+
     def _dict_to_session_info(self, session_data: dict[str, Any]) -> SessionInfo:
         """Convert dict to SessionInfo model"""
         # Parse messages
@@ -199,19 +189,8 @@ class SessionStore:
         ]
 
         # Parse dates - ensure timezone-aware
-        created_at = session_data.get("created_at")
-        if isinstance(created_at, str):
-            created_at = datetime.fromisoformat(created_at)
-            # Make timezone-aware if naive (assume UTC for legacy data)
-            if created_at.tzinfo is None:
-                created_at = created_at.replace(tzinfo=UTC)
-
-        updated_at = session_data.get("updated_at")
-        if isinstance(updated_at, str):
-            updated_at = datetime.fromisoformat(updated_at)
-            # Make timezone-aware if naive (assume UTC for legacy data)
-            if updated_at.tzinfo is None:
-                updated_at = updated_at.replace(tzinfo=UTC)
+        created_at = self._parse_datetime_with_tz(session_data.get("created_at"))
+        updated_at = self._parse_datetime_with_tz(session_data.get("updated_at"))
 
         return SessionInfo(
             id=session_data["id"],

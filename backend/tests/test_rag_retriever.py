@@ -255,3 +255,42 @@ class TestHybridRetriever:
 
         # Should not raise and return empty
         assert results == []
+
+    def test_get_doc_key_missing_chunk_index(self):
+        """Test that documents with same filename but missing chunk_index get different keys"""
+        # This tests the fix for the bug where chunk_index defaulted to empty string,
+        # causing documents with same filename but different content to be incorrectly
+        # deduplicated during RRF fusion (e.g., "file.pdf::" for all).
+
+        doc1 = Document(
+            page_content="First chunk of content",
+            metadata={"filename": "document.pdf"},  # No chunk_index
+        )
+        doc2 = Document(
+            page_content="Second chunk of content",
+            metadata={"filename": "document.pdf"},  # No chunk_index
+        )
+
+        retriever = HybridRetriever()
+        key1 = retriever._get_doc_key(doc1)
+        key2 = retriever._get_doc_key(doc2)
+
+        # Keys should be different (content-based) since chunk_index is missing
+        assert key1 != key2
+        assert key1.startswith("hash::")
+        assert key2.startswith("hash::")
+
+        # Documents with same filename AND chunk_index should get the same key
+        doc3 = Document(
+            page_content="Third chunk", metadata={"filename": "document.pdf", "chunk_index": 0}
+        )
+        doc4 = Document(
+            page_content="Different content",
+            metadata={"filename": "document.pdf", "chunk_index": 0},
+        )
+
+        key3 = retriever._get_doc_key(doc3)
+        key4 = retriever._get_doc_key(doc4)
+
+        # These should have the same key (filename::chunk_index)
+        assert key3 == key4 == "document.pdf::0"

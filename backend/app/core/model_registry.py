@@ -53,20 +53,20 @@ class ModelRegistry:
         """
         # Check user-provided keys first
         if user_keys:
-            if env_key == "OPENAI_API_KEY" and user_keys.openai_api_key:
-                return user_keys.openai_api_key
-            elif env_key == "ANTHROPIC_API_KEY" and user_keys.anthropic_api_key:
-                return user_keys.anthropic_api_key
-            elif env_key == "GEMINI_API_KEY" and user_keys.gemini_api_key:
-                return user_keys.gemini_api_key
-            elif env_key == "HF_API_KEY" and user_keys.hf_api_key:
-                return user_keys.hf_api_key
+            user_key_map = {
+                "OPENAI_API_KEY": user_keys.openai_api_key,
+                "ANTHROPIC_API_KEY": user_keys.anthropic_api_key,
+                "GEMINI_API_KEY": user_keys.gemini_api_key,
+                "HF_API_KEY": user_keys.hf_api_key,
+            }
+            if env_key in user_key_map and user_key_map[env_key]:
+                return user_key_map[env_key]
 
         # Fall back to server settings
         if env_key == "HF_API_KEY":
             return settings.get_hf_api_key()
-        else:
-            return getattr(settings, env_key, None)
+
+        return getattr(settings, env_key, None)
 
     @classmethod
     def get_available_models(cls, user_keys: UserAPIKeys | None = None) -> list[ModelInfo]:

@@ -20,16 +20,14 @@ try:
     import nltk
     from nltk.tokenize import word_tokenize
 
-    # Try to use punkt tokenizer, fall back to simple split if unavailable
+    # Check if punkt tokenizer is available
     try:
         nltk.data.find("tokenizers/punkt")
-        HAS_NLTK = True
+        NLTK_AVAILABLE = True
     except LookupError:
-        HAS_NLTK = False
-        logger.info("NLTK punkt tokenizer not found, using simple tokenization")
+        NLTK_AVAILABLE = False
 except ImportError:
-    HAS_NLTK = False
-    logger.info("NLTK not available, using simple tokenization")
+    NLTK_AVAILABLE = False
 
 
 class HybridRetriever:
@@ -41,31 +39,16 @@ class HybridRetriever:
 
     @staticmethod
     def _tokenize(text: str) -> list[str]:
-        """
-        Tokenize text for BM25 search.
-
-        Uses NLTK word_tokenize if available for better handling of punctuation,
-        contractions, and special characters. Falls back to regex-based tokenization.
-
-        Args:
-            text: Text to tokenize
-
-        Returns:
-            List of lowercase tokens
-        """
-        if HAS_NLTK:
-            # Use NLTK tokenizer for better handling of punctuation and contractions
+        """Tokenize text for BM25 search using NLTK or fallback to regex."""
+        if NLTK_AVAILABLE:
             try:
                 tokens = word_tokenize(text.lower())
-                # Filter out pure punctuation tokens
                 return [token for token in tokens if re.search(r"\w", token)]
-            except Exception as e:
-                logger.debug(f"NLTK tokenization failed, using fallback: {e}")
+            except Exception:
+                pass  # Fall through to regex tokenization
 
-        # Fallback: regex-based tokenization (handles punctuation better than split())
-        # Matches word characters (letters, numbers, underscores) and contractions
-        tokens = re.findall(r"\b\w+(?:'\w+)?\b", text.lower())
-        return tokens
+        # Fallback: regex-based tokenization
+        return re.findall(r"\b\w+(?:'\w+)?\b", text.lower())
 
     def retrieve(self, query: str, top_k: int = None) -> list[Document]:
         """
